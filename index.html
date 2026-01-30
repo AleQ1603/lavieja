@@ -3,24 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic Tac Toe 8-Bit Elite</title>
+    <title>Tic Tac Toe 8-Bit Tournament</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
-        :root { --primary: #00ff41; --bg: #000; --x-color: #ff003c; --o-color: #00e5ff; }
+        :root { --primary: #00ff41; --bg: #000; --x-color: #ff003c; --o-color: #00e5ff; --tie-color: #ffcc00; }
         body { font-family: 'Courier New', Courier, monospace; background: var(--bg); color: #fff; display: flex; flex-direction: column; align-items: center; padding: 5px; margin: 0; min-height: 100vh; overflow-y: auto; }
         .card { background: #111; padding: 10px; border-radius: 4px; border: 3px solid #333; margin-bottom: 8px; width: 95%; max-width: 500px; text-align: center; }
         input, select { background: #000; border: 2px solid #555; color: var(--primary); padding: 8px; margin: 4px; width: 85%; font-family: inherit; font-size: 14px; }
         button { background: var(--primary); border: none; color: #000; padding: 8px 16px; cursor: pointer; font-weight: bold; text-transform: uppercase; margin: 4px; }
-        .btn-danger { background: #ff003c; color: white; font-size: 10px; padding: 5px 10px; margin-top: 10px; }
+        .btn-danger { background: var(--x-color); color: white; font-size: 10px; padding: 5px 10px; margin-top: 15px; border-bottom: 3px solid #80001e; }
+        
         .board-container { position: relative; margin: 5px auto; border: 4px solid #333; background: #333; line-height: 0; }
         .board { display: grid; gap: 4px; }
         .cell { background: #000; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; position: relative; }
-        #win-line { position: absolute; z-index: 100; display: none; pointer-events: none; height: 4px; background: #fff; transform-origin: center left; box-shadow: 0 0 10px #fff, 0 0 20px currentColor; animation: laser-draw 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; }
+        
+        #win-line { position: absolute; z-index: 100; display: none; pointer-events: none; height: 4px; background: #fff; transform-origin: center left; box-shadow: 0 0 10px #fff, 0 0 20px currentColor; animation: laser-draw 0.5s forwards; }
         @keyframes laser-draw { 0% { scale: 0 1; } 100% { scale: 1 1; } }
-        .status { font-size: 1rem; color: var(--primary); margin: 5px 0; text-transform: uppercase; min-height: 1.2em; font-weight: bold; text-align: center; width: 95%; }
+        
+        .status { font-size: 1rem; color: var(--primary); margin: 5px 0; text-transform: uppercase; font-weight: bold; text-align: center; width: 95%; }
         .scoreboard { display: flex; justify-content: space-around; width: 95%; max-width: 500px; background: #111; padding: 8px; border: 2px solid #333; margin-top: 5px; }
         .score-val { font-size: 1.3rem; display: block; color: var(--primary); }
+        
+        /* Estilos del Historial */
+        .history-panel { width: 95%; max-width: 500px; margin-top: 10px; border: 1px solid #222; padding: 5px; background: #080808; }
+        .history-title { font-size: 0.8rem; color: #666; margin-bottom: 5px; text-align: left; padding-left: 5px; }
+        .history-item { font-size: 0.8rem; padding: 3px 8px; border-left: 3px solid #333; margin: 2px 0; text-align: left; background: #111; display: flex; justify-content: space-between; }
+        .win-X { border-color: var(--x-color); color: var(--x-color); }
+        .win-O { border-color: var(--o-color); color: var(--o-color); }
+        .win-tie { border-color: var(--tie-color); color: var(--tie-color); }
+        
         .hidden { display: none !important; }
     </style>
 </head>
@@ -34,12 +46,12 @@
         <option value="9">9x9 (Gana 5)</option>
     </select>
     <div id="link-section" class="hidden">
-        <input type="text" id="share-url" readonly style="width: 70%; font-size: 10px;">
+        <input type="text" id="share-url" readonly style="width: 65%; font-size: 10px;">
         <button onclick="copyLink()" style="padding: 4px 8px; font-size: 10px;">LINK</button>
     </div>
 </div>
 
-<div class="status" id="status">SISTEMA_LISTO</div>
+<div class="status" id="status">SISTEMA_OK</div>
 
 <div class="board-container">
     <div id="board" class="board"></div>
@@ -54,10 +66,15 @@
     <div><b id="name-o">O</b><span class="score-val" id="win-o">0</span></div>
 </div>
 
-<button class="btn-danger" onclick="clearScores()">REINICIAR MARCADOR</button>
+<div class="history-panel" id="history-panel">
+    <div class="history-title">ÚLTIMAS PARTIDAS:</div>
+    <div id="history-list"></div>
+</div>
+
+<button class="btn-danger" onclick="clearScores()">REINICIAR TODO</button>
 
 <script>
-    // --- PERSISTENCIA Y PUNTOS ---
+    // --- PERSISTENCIA ---
     document.getElementById('p-name').value = localStorage.getItem('ttt_player_name') || "";
     function saveName(val) { 
         localStorage.setItem('ttt_player_name', val);
@@ -65,8 +82,9 @@
     }
 
     function clearScores() {
-        if(confirm("¿Está seguro de querer reiniciar los puntos?")) {
-            localStorage.setItem('ttt_8bit_v4', JSON.stringify({X:0, O:0, tie:0}));
+        if(confirm("¿Está seguro de querer reiniciar los puntos y el historial?")) {
+            localStorage.setItem('ttt_8bit_v5', JSON.stringify({X:0, O:0, tie:0}));
+            gameRef.child('history').remove(); // Limpia historial en Firebase
             updateScoresDisplay();
         }
     }
@@ -82,7 +100,7 @@
     }
     const sfx = { move:()=>playSfx([200,400],'square',0.05), win:()=>playSfx([400,600,900],'square',0.4), tie:()=>playSfx([300,100],'sawtooth',0.3), res:()=>playSfx([600,800],'square',0.2) };
 
-    // --- FIREBASE ---
+    // --- FIREBASE CONFIG (RELLENAR) ---
     const firebaseConfig = {
         apiKey: "AIzaSyCLjLoz8I7ZnR-xWJ6-ltQfLGOHrGQWS-I",
         authDomain: "lavieja-aa32d.firebaseapp.com",
@@ -92,7 +110,7 @@
         messagingSenderId: "73070638433",
         appId: "1:73070638433:web:b4758e7ad14ccd54810120"
     };
-
+    
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const urlParams = new URLSearchParams(window.location.search);
@@ -119,6 +137,7 @@
         if (!mySymbol) mySymbol = data.hostSymbol === "X" ? "O" : "X";
 
         renderBoard();
+        updateHistory(data.history);
         
         const currentTurnName = data.players ? (data.players[turn] || `JUGADOR ${turn}`) : `JUGADOR ${turn}`;
 
@@ -141,19 +160,19 @@
 
     function initDB() {
         const sz = parseInt(document.getElementById('size-select').value);
-        const firstTurn = Math.random() > 0.5 ? "X" : "O"; // Inicio aleatorio primera vez
+        const firstTurn = Math.random() > 0.5 ? "X" : "O";
         gameRef.set({ size: sz, board: Array(sz*sz).fill(""), turn: firstTurn, hostSymbol: mySymbol, winner: null, players: {[mySymbol]: document.getElementById('p-name').value || `JUGADOR ${mySymbol}`} });
     }
 
     function renderBoard() {
         const bDiv = document.getElementById('board');
         bDiv.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
-        const finalSize = Math.min(window.innerHeight - 350, window.innerWidth - 40, 450);
+        const finalSize = Math.min(window.innerHeight - 420, window.innerWidth - 40, 450);
         bDiv.style.width = finalSize + "px";
         bDiv.innerHTML = "";
         board.forEach((v, i) => {
             const c = document.createElement('div'); c.className = 'cell';
-            c.style.fontSize = boardSize === 3 ? "2.5rem" : (boardSize === 6 ? "1.5rem" : "1rem");
+            c.style.fontSize = boardSize === 3 ? "2.5rem" : (boardSize === 6 ? "1.5rem" : "1.1rem");
             c.innerText = v; c.style.color = v==="X" ? "var(--x-color)":"var(--o-color)";
             c.onclick = () => makeMove(i); bDiv.appendChild(c);
         });
@@ -171,11 +190,39 @@
         const lines = getLines();
         for (let l of lines) {
             if (l.every(idx => board[idx] === mySymbol)) {
+                pushHistory(mySymbol);
                 gameRef.update({ winner: mySymbol, winLine: l, winTime: Date.now() });
                 return;
             }
         }
-        if (!board.includes("")) gameRef.update({ winner: "tie", winTime: Date.now() });
+        if (!board.includes("")) {
+            pushHistory("tie");
+            gameRef.update({ winner: "tie", winTime: Date.now() });
+        }
+    }
+
+    function pushHistory(w) {
+        gameRef.child('history').once('value', (s) => {
+            let h = s.val() || [];
+            const nameX = document.getElementById('name-x').innerText;
+            const nameO = document.getElementById('name-o').innerText;
+            let entry = w === 'tie' ? "EMPATE" : (w === 'X' ? nameX : nameO);
+            h.unshift({ winner: w, name: entry, time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) });
+            if(h.length > 5) h.pop();
+            gameRef.update({ history: h });
+        });
+    }
+
+    function updateHistory(history) {
+        const list = document.getElementById('history-list');
+        list.innerHTML = "";
+        if(!history) return;
+        history.forEach(item => {
+            const div = document.createElement('div');
+            div.className = `history-item win-${item.winner}`;
+            div.innerHTML = `<span>▶ ${item.name}</span> <span>${item.time}</span>`;
+            list.appendChild(div);
+        });
     }
 
     function applyWin(w, line, players) {
@@ -185,8 +232,8 @@
         document.getElementById('status').innerText = w === "tie" ? "EMPATE" : `¡${winnerName} GANA!`;
         document.getElementById('rematch-btn').classList.remove('hidden');
         
-        let s = JSON.parse(localStorage.getItem('ttt_8bit_v4')) || {X:0, O:0, tie:0};
-        s[w]++; localStorage.setItem('ttt_8bit_v4', JSON.stringify(s));
+        let s = JSON.parse(localStorage.getItem('ttt_8bit_v5')) || {X:0, O:0, tie:0};
+        s[w]++; localStorage.setItem('ttt_8bit_v5', JSON.stringify(s));
         updateScoresDisplay();
         if (line) drawLaser(line, w);
     }
@@ -222,7 +269,6 @@
     }
 
     function resetAfterWin() {
-        // El ganador inicia. Si fue empate, aleatorio.
         let nextTurn = (winnerOfLastRound && winnerOfLastRound !== "tie") ? winnerOfLastRound : (Math.random() > 0.5 ? "X" : "O");
         resetGame(nextTurn);
     }
@@ -234,7 +280,7 @@
     }
 
     function updateScoresDisplay() {
-        const s = JSON.parse(localStorage.getItem('ttt_8bit_v4')) || {X:0, O:0, tie:0};
+        const s = JSON.parse(localStorage.getItem('ttt_8bit_v5')) || {X:0, O:0, tie:0};
         document.getElementById('win-x').innerText = s.X; document.getElementById('win-o').innerText = s.O; document.getElementById('win-tie').innerText = s.tie;
     }
 
