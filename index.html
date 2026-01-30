@@ -3,43 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic Tac Toe 8-Bit Ultra</title>
+    <title>Tic Tac Toe 8-Bit Elite</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         :root { --primary: #00ff41; --bg: #000; --x-color: #ff003c; --o-color: #00e5ff; }
-        
-        body { 
-            font-family: 'Courier New', Courier, monospace; 
-            background: var(--bg); 
-            color: #fff; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            padding: 5px; 
-            margin: 0; 
-            min-height: 100vh;
-            overflow-y: auto; 
-        }
-        
+        body { font-family: 'Courier New', Courier, monospace; background: var(--bg); color: #fff; display: flex; flex-direction: column; align-items: center; padding: 5px; margin: 0; min-height: 100vh; overflow-y: auto; }
         .card { background: #111; padding: 10px; border-radius: 4px; border: 3px solid #333; margin-bottom: 8px; width: 95%; max-width: 500px; text-align: center; }
         input, select { background: #000; border: 2px solid #555; color: var(--primary); padding: 8px; margin: 4px; width: 85%; font-family: inherit; font-size: 14px; }
         button { background: var(--primary); border: none; color: #000; padding: 8px 16px; cursor: pointer; font-weight: bold; text-transform: uppercase; margin: 4px; }
-        
+        .btn-danger { background: #ff003c; color: white; font-size: 10px; padding: 5px 10px; margin-top: 10px; }
         .board-container { position: relative; margin: 5px auto; border: 4px solid #333; background: #333; line-height: 0; }
         .board { display: grid; gap: 4px; }
         .cell { background: #000; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; position: relative; }
-        
-        #win-line { 
-            position: absolute; z-index: 100; display: none; pointer-events: none; 
-            height: 4px; background: #fff; transform-origin: center left;
-            box-shadow: 0 0 10px #fff, 0 0 20px currentColor;
-            animation: laser-draw 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-        }
+        #win-line { position: absolute; z-index: 100; display: none; pointer-events: none; height: 4px; background: #fff; transform-origin: center left; box-shadow: 0 0 10px #fff, 0 0 20px currentColor; animation: laser-draw 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; }
         @keyframes laser-draw { 0% { scale: 0 1; } 100% { scale: 1 1; } }
-
         .status { font-size: 1rem; color: var(--primary); margin: 5px 0; text-transform: uppercase; min-height: 1.2em; font-weight: bold; text-align: center; width: 95%; }
-        .scoreboard { display: flex; justify-content: space-around; width: 95%; max-width: 500px; background: #111; padding: 8px; border: 2px solid #333; margin-top: 5px; margin-bottom: 15px; }
+        .scoreboard { display: flex; justify-content: space-around; width: 95%; max-width: 500px; background: #111; padding: 8px; border: 2px solid #333; margin-top: 5px; }
         .score-val { font-size: 1.3rem; display: block; color: var(--primary); }
         .hidden { display: none !important; }
     </style>
@@ -48,7 +28,7 @@
 
 <div class="card" id="setup-panel">
     <input type="text" id="p-name" placeholder="TU_NOMBRE" maxlength="12" oninput="saveName(this.value)">
-    <select id="size-select" onchange="if(isHost) resetGame()">
+    <select id="size-select" onchange="if(isHost) resetGame('random')">
         <option value="3">3x3 (Gana 3)</option>
         <option value="6">6x6 (Gana 4)</option>
         <option value="9">9x9 (Gana 5)</option>
@@ -59,14 +39,14 @@
     </div>
 </div>
 
-<div class="status" id="status">INIT...</div>
+<div class="status" id="status">SISTEMA_LISTO</div>
 
 <div class="board-container">
     <div id="board" class="board"></div>
     <div id="win-line"></div>
 </div>
 
-<button id="rematch-btn" class="hidden" onclick="resetGame()">REJUGAR</button>
+<button id="rematch-btn" class="hidden" onclick="resetAfterWin()">SIGUIENTE RONDA</button>
 
 <div class="scoreboard">
     <div><b id="name-x">X</b><span class="score-val" id="win-x">0</span></div>
@@ -74,20 +54,24 @@
     <div><b id="name-o">O</b><span class="score-val" id="win-o">0</span></div>
 </div>
 
-<script>
-    // --- PERSISTENCIA DE NOMBRE ---
-    const savedName = localStorage.getItem('ttt_player_name') || "";
-    document.getElementById('p-name').value = savedName;
+<button class="btn-danger" onclick="clearScores()">REINICIAR MARCADOR</button>
 
-    function saveName(val) {
+<script>
+    // --- PERSISTENCIA Y PUNTOS ---
+    document.getElementById('p-name').value = localStorage.getItem('ttt_player_name') || "";
+    function saveName(val) { 
         localStorage.setItem('ttt_player_name', val);
-        // Actualizar en Firebase si es mi turno
-        if(mySymbol === turn) {
-            gameRef.child('players').child(mySymbol).set(val || `JUGADOR ${mySymbol}`);
+        if(mySymbol === turn) gameRef.child('players').child(mySymbol).set(val || `JUGADOR ${mySymbol}`);
+    }
+
+    function clearScores() {
+        if(confirm("¿Está seguro de querer reiniciar los puntos?")) {
+            localStorage.setItem('ttt_8bit_v4', JSON.stringify({X:0, O:0, tie:0}));
+            updateScoresDisplay();
         }
     }
 
-    // --- AUDIO 8-BIT ---
+    // --- AUDIO ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     function playSfx(f, type, d) {
         if(audioCtx.state === 'suspended') audioCtx.resume();
@@ -98,7 +82,7 @@
     }
     const sfx = { move:()=>playSfx([200,400],'square',0.05), win:()=>playSfx([400,600,900],'square',0.4), tie:()=>playSfx([300,100],'sawtooth',0.3), res:()=>playSfx([600,800],'square',0.2) };
 
-    // --- FIREBASE CONFIG ---
+    // --- FIREBASE ---
     const firebaseConfig = {
         apiKey: "AIzaSyCLjLoz8I7ZnR-xWJ6-ltQfLGOHrGQWS-I",
         authDomain: "lavieja-aa32d.firebaseapp.com",
@@ -115,7 +99,7 @@
     let gameId = urlParams.get('game') || Math.random().toString(36).substring(7);
     let gameRef = db.ref('games/' + gameId);
 
-    let mySymbol="", boardSize=3, winTarget=3, board=[], turn="X", isHost=!urlParams.get('game'), gameActive=true, lastWinID="";
+    let mySymbol="", boardSize=3, winTarget=3, board=[], turn="X", isHost=!urlParams.get('game'), gameActive=true, lastWinID="", winnerOfLastRound = null;
 
     if (isHost) {
         mySymbol = Math.random() > 0.5 ? "X" : "O";
@@ -131,6 +115,7 @@
         boardSize = data.size || 3;
         winTarget = boardSize == 3 ? 3 : (boardSize == 6 ? 4 : 5);
         board = data.board; turn = data.turn;
+        winnerOfLastRound = data.winner;
         if (!mySymbol) mySymbol = data.hostSymbol === "X" ? "O" : "X";
 
         renderBoard();
@@ -151,23 +136,20 @@
             document.getElementById('name-x').innerText = data.players.X || "X";
             document.getElementById('name-o').innerText = data.players.O || "O";
         }
-        updateScores();
+        updateScoresDisplay();
     });
 
     function initDB() {
         const sz = parseInt(document.getElementById('size-select').value);
-        gameRef.set({ size: sz, board: Array(sz*sz).fill(""), turn: "X", hostSymbol: mySymbol, winner: null, players: {[mySymbol]: document.getElementById('p-name').value || `JUGADOR ${mySymbol}`} });
+        const firstTurn = Math.random() > 0.5 ? "X" : "O"; // Inicio aleatorio primera vez
+        gameRef.set({ size: sz, board: Array(sz*sz).fill(""), turn: firstTurn, hostSymbol: mySymbol, winner: null, players: {[mySymbol]: document.getElementById('p-name').value || `JUGADOR ${mySymbol}`} });
     }
 
     function renderBoard() {
         const bDiv = document.getElementById('board');
         bDiv.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
-        // Altura disponible restando paneles superiores e inferiores
-        const hAvail = window.innerHeight - 320;
-        const wAvail = window.innerWidth - 40;
-        const finalSize = Math.min(hAvail, wAvail, 450);
+        const finalSize = Math.min(window.innerHeight - 350, window.innerWidth - 40, 450);
         bDiv.style.width = finalSize + "px";
-        
         bDiv.innerHTML = "";
         board.forEach((v, i) => {
             const c = document.createElement('div'); c.className = 'cell';
@@ -180,12 +162,7 @@
     function makeMove(i) {
         if (board[i] === "" && turn === mySymbol && gameActive) {
             board[i] = mySymbol;
-            const name = document.getElementById('p-name').value || `JUGADOR ${mySymbol}`;
-            gameRef.update({ 
-                board: board, 
-                turn: turn === "X" ? "O" : "X", 
-                [`players/${mySymbol}`]: name 
-            });
+            gameRef.update({ board: board, turn: turn === "X" ? "O" : "X", [`players/${mySymbol}`]: document.getElementById('p-name').value || `JUGADOR ${mySymbol}` });
             checkWin();
         }
     }
@@ -208,9 +185,9 @@
         document.getElementById('status').innerText = w === "tie" ? "EMPATE" : `¡${winnerName} GANA!`;
         document.getElementById('rematch-btn').classList.remove('hidden');
         
-        let s = JSON.parse(localStorage.getItem('ttt_8bit_v3')) || {X:0, O:0, tie:0};
-        s[w]++; localStorage.setItem('ttt_8bit_v3', JSON.stringify(s));
-        updateScores();
+        let s = JSON.parse(localStorage.getItem('ttt_8bit_v4')) || {X:0, O:0, tie:0};
+        s[w]++; localStorage.setItem('ttt_8bit_v4', JSON.stringify(s));
+        updateScoresDisplay();
         if (line) drawLaser(line, w);
     }
 
@@ -224,41 +201,40 @@
         const y1 = (fCell.top + fCell.height/2) - bRect.top;
         const x2 = (lCell.left + lCell.width/2) - bRect.left;
         const y2 = (lCell.top + lCell.height/2) - bRect.top;
-        const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
-        const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
-        laser.style.width = dist + "px"; laser.style.left = x1 + "px"; laser.style.top = y1 + "px";
-        laser.style.transform = `rotate(${angle}deg)`;
+        laser.style.width = Math.sqrt((x2-x1)**2 + (y2-y1)**2) + "px";
+        laser.style.left = x1 + "px"; laser.style.top = y1 + "px";
+        laser.style.transform = `rotate(${Math.atan2(y2-y1, x2-x1) * 180 / Math.PI}deg)`;
         laser.style.backgroundColor = w === 'X' ? 'var(--x-color)' : 'var(--o-color)';
         laser.style.display = "block";
     }
 
     function getLines() {
         let l = [];
-        for (let r=0; r<boardSize; r++) {
-            for (let c=0; c<=boardSize-winTarget; c++) {
-                let h=[], v=[];
-                for(let k=0; k<winTarget; k++) { h.push(r*boardSize + (c+k)); v.push((c+k)*boardSize + r); }
-                l.push(h); l.push(v);
-            }
-        }
-        for (let r=0; r<=boardSize-winTarget; r++) {
-            for (let c=0; c<=boardSize-winTarget; c++) {
-                let d1=[], d2=[];
-                for(let k=0; k<winTarget; k++) { d1.push((r+k)*boardSize + (c+k)); d2.push((r+k)*boardSize + (c+winTarget-1-k)); }
-                l.push(d1); l.push(d2);
-            }
-        }
+        for (let r=0; r<boardSize; r++) { for (let c=0; c<=boardSize-winTarget; c++) {
+            let h=[], v=[]; for(let k=0; k<winTarget; k++) { h.push(r*boardSize + (c+k)); v.push((c+k)*boardSize + r); }
+            l.push(h); l.push(v);
+        }}
+        for (let r=0; r<=boardSize-winTarget; r++) { for (let c=0; c<=boardSize-winTarget; c++) {
+            let d1=[], d2=[]; for(let k=0; k<winTarget; k++) { d1.push((r+k)*boardSize + (c+k)); d2.push((r+k)*boardSize + (c+winTarget-1-k)); }
+            l.push(d1); l.push(d2);
+        }}
         return l;
     }
 
-    function resetGame() {
-        sfx.res();
-        const sz = parseInt(document.getElementById('size-select').value);
-        gameRef.update({ board: Array(sz*sz).fill(""), turn: "X", winner: null, winLine: null, winTime: null, size: sz });
+    function resetAfterWin() {
+        // El ganador inicia. Si fue empate, aleatorio.
+        let nextTurn = (winnerOfLastRound && winnerOfLastRound !== "tie") ? winnerOfLastRound : (Math.random() > 0.5 ? "X" : "O");
+        resetGame(nextTurn);
     }
 
-    function updateScores() {
-        const s = JSON.parse(localStorage.getItem('ttt_8bit_v3')) || {X:0, O:0, tie:0};
+    function resetGame(forcedTurn) {
+        sfx.res();
+        const sz = parseInt(document.getElementById('size-select').value);
+        gameRef.update({ board: Array(sz*sz).fill(""), turn: forcedTurn === 'random' ? (Math.random() > 0.5 ? "X" : "O") : forcedTurn, winner: null, winLine: null, winTime: null, size: sz });
+    }
+
+    function updateScoresDisplay() {
+        const s = JSON.parse(localStorage.getItem('ttt_8bit_v4')) || {X:0, O:0, tie:0};
         document.getElementById('win-x').innerText = s.X; document.getElementById('win-o').innerText = s.O; document.getElementById('win-tie').innerText = s.tie;
     }
 
