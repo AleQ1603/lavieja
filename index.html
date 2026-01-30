@@ -3,57 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic Tac Toe 8-Bit Pro</title>
+    <title>Tic Tac Toe Laser Fixed</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         :root { --primary: #00ff41; --bg: #000; --x-color: #ff003c; --o-color: #00e5ff; }
-        body { font-family: 'Courier New', Courier, monospace; background: var(--bg); color: #fff; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; overflow-x: hidden; }
-        .card { background: #111; padding: 15px; border-radius: 4px; border: 3px solid #333; margin-bottom: 15px; width: 95%; max-width: 600px; text-align: center; }
-        input, select { background: #000; border: 2px solid #555; color: var(--primary); padding: 10px; margin: 5px; width: 85%; font-family: inherit; }
-        button { background: var(--primary); border: none; color: #000; padding: 12px 20px; cursor: pointer; font-weight: bold; margin: 5px; text-transform: uppercase; }
+        body { font-family: 'Courier New', Courier, monospace; background: var(--bg); color: #fff; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; overflow: hidden; }
         
-        .board-container { position: relative; margin: 20px auto; display: inline-block; border: 4px solid #333; background: #333; }
+        .card { background: #111; padding: 15px; border-radius: 4px; border: 3px solid #333; margin-bottom: 10px; width: 95%; max-width: 600px; text-align: center; }
+        input, select { background: #000; border: 2px solid #555; color: var(--primary); padding: 8px; margin: 5px; width: 80%; font-family: inherit; }
+        button { background: var(--primary); border: none; color: #000; padding: 10px 20px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
+        
+        .board-container { position: relative; margin: 15px auto; border: 4px solid #333; background: #333; line-height: 0; }
         .board { display: grid; gap: 4px; }
-        .cell { background: #000; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; position: relative; }
+        .cell { background: #000; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; position: relative; overflow: hidden; }
         
+        /* Línea Láser Corregida */
         #win-line { 
             position: absolute; z-index: 100; display: none; pointer-events: none; 
-            height: 4px; background: #fff; transform-origin: center left;
-            box-shadow: 0 0 10px #fff, 0 0 20px currentColor; 
-            animation: laser-shoot 0.4s ease-out forwards;
+            height: 5px; background: #fff; 
+            transform-origin: center left; /* Punto de anclaje crítico */
+            box-shadow: 0 0 10px #fff, 0 0 20px currentColor;
+            animation: laser-draw 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
         }
-        @keyframes laser-shoot { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+        @keyframes laser-draw { 0% { scale: 0 1; } 100% { scale: 1 1; } }
 
-        .status { font-size: 1.2rem; color: var(--primary); margin: 10px 0; text-transform: uppercase; height: 1.5em; }
-        .scoreboard { display: flex; justify-content: space-around; width: 95%; max-width: 600px; background: #111; padding: 15px; border: 2px solid #333; }
-        .score-val { font-size: 1.8rem; display: block; color: var(--primary); }
+        .status { font-size: 1.1rem; color: var(--primary); margin: 5px 0; text-transform: uppercase; height: 1.2em; font-weight: bold; }
+        .scoreboard { display: flex; justify-content: space-around; width: 95%; max-width: 600px; background: #111; padding: 10px; border: 2px solid #333; }
+        .score-val { font-size: 1.5rem; display: block; color: var(--primary); }
         .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
 <div class="card" id="setup-panel">
-    <input type="text" id="p-name" placeholder="USUARIO">
+    <input type="text" id="p-name" placeholder="ID_USUARIO">
     <select id="size-select" onchange="if(isHost) resetGame()">
-        <option value="3">3x3 (Gana 3)</option>
-        <option value="6">6x6 (Gana 4)</option>
-        <option value="9">9x9 (Gana 5)</option>
+        <option value="3">3x3 (Línea: 3)</option>
+        <option value="6">6x6 (Línea: 4)</option>
+        <option value="9">9x9 (Línea: 5)</option>
     </select>
     <div id="link-section" class="hidden">
-        <input type="text" id="share-url" readonly onclick="this.select()">
-        <button onclick="copyLink()">COPIAR LINK</button>
+        <input type="text" id="share-url" readonly style="width: 60%; font-size: 10px;">
+        <button onclick="copyLink()" style="padding: 5px 10px;">LINK</button>
     </div>
 </div>
 
-<div class="status" id="status">INIT...</div>
+<div class="status" id="status">SISTEMA_OK</div>
 
-<div class="board-container">
+<div class="board-container" id="board-cont">
     <div id="board" class="board"></div>
     <div id="win-line"></div>
 </div>
 
-<button id="rematch-btn" class="hidden" onclick="resetGame()">REINTENTAR</button>
+<button id="rematch-btn" class="hidden" onclick="resetGame()" style="margin-bottom: 10px;">REINTENTAR</button>
 
 <div class="scoreboard">
     <div><b id="name-x">X</b><span class="score-val" id="win-x">0</span></div>
@@ -62,29 +65,18 @@
 </div>
 
 <script>
-    // --- MOTOR AUDIO 8-BIT ---
+    // --- AUDIO 8-BIT ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    function playRetro(freqs, type, duration) {
+    function playSfx(f, type, d) {
         if(audioCtx.state === 'suspended') audioCtx.resume();
-        const now = audioCtx.currentTime;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = type;
-        freqs.forEach((f, i) => osc.frequency.setValueAtTime(f, now + (i * (duration / freqs.length))));
-        gain.gain.setValueAtTime(0.05, now);
-        gain.gain.linearRampToValueAtTime(0, now + duration);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(now + duration);
+        const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
+        osc.type = type; f.forEach((v, i) => osc.frequency.setValueAtTime(v, audioCtx.currentTime + (i * d/f.length)));
+        g.gain.setValueAtTime(0.05, audioCtx.currentTime); g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + d);
+        osc.connect(g); g.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + d);
     }
+    const sfx = { move:()=>playSfx([200,400],'square',0.05), win:()=>playSfx([400,600,900],'square',0.4), tie:()=>playSfx([300,100],'sawtooth',0.3), res:()=>playSfx([600,800],'square',0.2) };
 
-    const sfx = {
-        move: () => playRetro([200, 400], 'square', 0.05),
-        win: () => playRetro([400, 600, 800, 1000], 'square', 0.4),
-        tie: () => playRetro([300, 150], 'sawtooth', 0.3),
-        reset: () => playRetro([600, 900], 'square', 0.2)
-    };
-
-    // --- FIREBASE (RELLENA TUS DATOS) ---
+    // --- FIREBASE ---
     const firebaseConfig = {
         apiKey: "AIzaSyCLjLoz8I7ZnR-xWJ6-ltQfLGOHrGQWS-I",
         authDomain: "lavieja-aa32d.firebaseapp.com",
@@ -101,8 +93,7 @@
     let gameId = urlParams.get('game') || Math.random().toString(36).substring(7);
     let gameRef = db.ref('games/' + gameId);
 
-    let mySymbol = "", boardSize = 3, winTarget = 3, board = [], turn = "X", isHost = !urlParams.get('game'), gameActive = true;
-    let lastWinnerId = ""; // Para evitar doble conteo
+    let mySymbol="", boardSize=3, winTarget=3, board=[], turn="X", isHost=!urlParams.get('game'), gameActive=true, lastWinID="";
 
     if (isHost) {
         mySymbol = Math.random() > 0.5 ? "X" : "O";
@@ -112,118 +103,95 @@
 
     gameRef.on('value', (snap) => {
         const data = snap.val();
-        if (!data) { if (isHost) initGameDB(); return; }
-        
+        if (!data) { if(isHost) initDB(); return; }
         if (board.length > 0 && JSON.stringify(board) !== JSON.stringify(data.board)) sfx.move();
 
         boardSize = data.size || 3;
         winTarget = boardSize == 3 ? 3 : (boardSize == 6 ? 4 : 5);
-        board = data.board;
-        turn = data.turn;
+        board = data.board; turn = data.turn;
         if (!mySymbol) mySymbol = data.hostSymbol === "X" ? "O" : "X";
 
         renderBoard();
         
-        // Lógica de ganador sincronizada para ambos
-        if (data.winner && lastWinnerId !== data.winnerTime) {
-            lastWinnerId = data.winnerTime;
-            handleVictory(data.winner, data.winLine);
+        if (data.winner && lastWinID !== data.winTime) {
+            lastWinID = data.winTime;
+            applyWin(data.winner, data.winLine);
         } else if (!data.winner) {
             gameActive = true;
             document.getElementById('status').innerText = `TURNO: ${turn}`;
             document.getElementById('rematch-btn').classList.add('hidden');
             document.getElementById('win-line').style.display = "none";
         }
-
         if (data.players) {
             document.getElementById('name-x').innerText = data.players.X || "X";
             document.getElementById('name-o').innerText = data.players.O || "O";
         }
-        updateScoreDisplay();
+        updateScores();
     });
 
-    function initGameDB() {
-        const size = parseInt(document.getElementById('size-select').value);
-        gameRef.set({
-            size: size,
-            board: Array(size * size).fill(""),
-            turn: "X",
-            hostSymbol: mySymbol,
-            winner: null,
-            players: { [mySymbol]: document.getElementById('p-name').value || "USER" }
-        });
+    function initDB() {
+        const sz = parseInt(document.getElementById('size-select').value);
+        gameRef.set({ size: sz, board: Array(sz*sz).fill(""), turn: "X", hostSymbol: mySymbol, winner: null, players: {[mySymbol]: document.getElementById('p-name').value || "USER"} });
     }
 
     function renderBoard() {
-        const boardDiv = document.getElementById('board');
-        boardDiv.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
-        // Tamaño responsivo: más grande pero sin salirse
-        const maxWidth = Math.min(window.innerWidth - 40, 550);
-        boardDiv.style.width = maxWidth + "px";
-        boardDiv.innerHTML = "";
-        
-        board.forEach((val, i) => {
-            const cell = document.createElement('div');
-            cell.className = 'cell';
-            cell.style.fontSize = boardSize === 3 ? "3rem" : (boardSize === 6 ? "1.8rem" : "1.2rem");
-            cell.innerText = val;
-            cell.style.color = val === "X" ? "var(--x-color)" : "var(--o-color)";
-            cell.onclick = () => makeMove(i);
-            boardDiv.appendChild(cell);
+        const bDiv = document.getElementById('board');
+        bDiv.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
+        const w = Math.min(window.innerWidth - 30, boardSize === 3 ? 350 : (boardSize === 6 ? 450 : 550));
+        bDiv.style.width = w + "px";
+        bDiv.innerHTML = "";
+        board.forEach((v, i) => {
+            const c = document.createElement('div'); c.className = 'cell';
+            c.style.fontSize = boardSize === 3 ? "2.5rem" : (boardSize === 6 ? "1.5rem" : "1rem");
+            c.innerText = v; c.style.color = v==="X" ? "var(--x-color)":"var(--o-color)";
+            c.onclick = () => makeMove(i); bDiv.appendChild(c);
         });
     }
 
     function makeMove(i) {
         if (board[i] === "" && turn === mySymbol && gameActive) {
             board[i] = mySymbol;
-            const nextTurn = turn === "X" ? "O" : "X";
-            gameRef.update({
-                board: board,
-                turn: nextTurn,
-                [`players/${mySymbol}`]: document.getElementById('p-name').value || "USER"
-            });
-            checkGameLogic();
+            gameRef.update({ board: board, turn: turn === "X" ? "O" : "X", [`players/${mySymbol}`]: document.getElementById('p-name').value || "USER" });
+            checkWin();
         }
     }
 
-    function checkGameLogic() {
-        const lines = getAllLines();
-        for (let line of lines) {
-            if (line.every(idx => board[idx] === mySymbol)) {
-                gameRef.update({ winner: mySymbol, winLine: line, winnerTime: Date.now() });
+    function checkWin() {
+        const lines = getLines();
+        for (let l of lines) {
+            if (l.every(idx => board[idx] === mySymbol)) {
+                gameRef.update({ winner: mySymbol, winLine: l, winTime: Date.now() });
                 return;
             }
         }
-        if (!board.includes("")) {
-            gameRef.update({ winner: "tie", winnerTime: Date.now() });
-        }
+        if (!board.includes("")) gameRef.update({ winner: "tie", winTime: Date.now() });
     }
 
-    function handleVictory(winner, line) {
+    function applyWin(w, line) {
         gameActive = false;
-        winner === "tie" ? sfx.tie() : sfx.win();
-        document.getElementById('status').innerText = winner === "tie" ? "EMPATE" : `${winner} GANA!`;
+        w === "tie" ? sfx.tie() : sfx.win();
+        document.getElementById('status').innerText = w === "tie" ? "EMPATE" : `${w} GANA!`;
         document.getElementById('rematch-btn').classList.remove('hidden');
         
-        let s = JSON.parse(localStorage.getItem('ttt_v8_final')) || {X:0, O:0, tie:0};
-        s[winner]++;
-        localStorage.setItem('ttt_v8_final', JSON.stringify(s));
-        updateScoreDisplay();
-        if (line) drawLaser(line, winner);
+        let s = JSON.parse(localStorage.getItem('ttt_8bit_fix')) || {X:0, O:0, tie:0};
+        s[w]++; localStorage.setItem('ttt_8bit_fix', JSON.stringify(s));
+        updateScores();
+        if (line) drawLaser(line, w);
     }
 
-    function drawLaser(indices, winner) {
+    function drawLaser(indices, w) {
         const laser = document.getElementById('win-line');
         const cells = document.querySelectorAll('.cell');
-        const boardRect = document.getElementById('board').getBoundingClientRect();
+        const bRect = document.getElementById('board').getBoundingClientRect();
         
-        const first = cells[indices[0]].getBoundingClientRect();
-        const last = cells[indices[indices.length-1]].getBoundingClientRect();
+        // Obtenemos centros de las celdas
+        const fCell = cells[indices[0]].getBoundingClientRect();
+        const lCell = cells[indices[indices.length-1]].getBoundingClientRect();
         
-        const x1 = (first.left + first.width/2) - boardRect.left;
-        const y1 = (first.top + first.height/2) - boardRect.top;
-        const x2 = (last.left + last.width/2) - boardRect.left;
-        const y2 = (last.top + last.height/2) - boardRect.top;
+        const x1 = (fCell.left + fCell.width/2) - bRect.left;
+        const y1 = (fCell.top + fCell.height/2) - bRect.top;
+        const x2 = (lCell.left + lCell.width/2) - bRect.left;
+        const y2 = (lCell.top + lCell.height/2) - bRect.top;
         
         const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
         const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
@@ -232,49 +200,44 @@
         laser.style.left = x1 + "px";
         laser.style.top = y1 + "px";
         laser.style.transform = `rotate(${angle}deg)`;
-        laser.style.color = winner === 'X' ? 'var(--x-color)' : 'var(--o-color)';
+        laser.style.backgroundColor = w === 'X' ? 'var(--x-color)' : 'var(--o-color)';
         laser.style.display = "block";
     }
 
-    function getAllLines() {
-        let lines = [];
-        for (let r = 0; r < boardSize; r++) {
-            for (let c = 0; c <= boardSize - winTarget; c++) {
-                let h = [], v = [];
-                for(let k=0; k<winTarget; k++) {
-                    h.push(r * boardSize + (c + k));
-                    v.push((c + k) * boardSize + r);
-                }
-                lines.push(h); lines.push(v);
+    function getLines() {
+        let l = [];
+        for (let r=0; r<boardSize; r++) {
+            for (let c=0; c<=boardSize-winTarget; c++) {
+                let h=[], v=[];
+                for(let k=0; k<winTarget; k++) { h.push(r*boardSize + (c+k)); v.push((c+k)*boardSize + r); }
+                l.push(h); l.push(v);
             }
         }
-        for (let r = 0; r <= boardSize - winTarget; r++) {
-            for (let c = 0; c <= boardSize - winTarget; c++) {
-                let d1 = [], d2 = [];
+        for (let r=0; r<=boardSize-winTarget; r++) {
+            for (let c=0; c<=boardSize-winTarget; c++) {
+                let d1=[], d2=[];
                 for(let k=0; k<winTarget; k++) {
-                    d1.push((r + k) * boardSize + (c + k));
-                    d2.push((r + k) * boardSize + (c + winTarget - 1 - k));
+                    d1.push((r+k)*boardSize + (c+k));
+                    d2.push((r+k)*boardSize + (c+winTarget-1-k));
                 }
-                lines.push(d1); lines.push(d2);
+                l.push(d1); l.push(d2);
             }
         }
-        return lines;
+        return l;
     }
 
     function resetGame() {
-        sfx.reset();
-        const size = parseInt(document.getElementById('size-select').value);
-        gameRef.update({ board: Array(size * size).fill(""), turn: "X", winner: null, winLine: null, winnerTime: null, size: size });
+        sfx.res();
+        const sz = parseInt(document.getElementById('size-select').value);
+        gameRef.update({ board: Array(sz*sz).fill(""), turn: "X", winner: null, winLine: null, winTime: null, size: sz });
     }
 
-    function updateScoreDisplay() {
-        const s = JSON.parse(localStorage.getItem('ttt_v8_final')) || {X:0, O:0, tie:0};
-        document.getElementById('win-x').innerText = s.X;
-        document.getElementById('win-o').innerText = s.O;
-        document.getElementById('win-tie').innerText = s.tie;
+    function updateScores() {
+        const s = JSON.parse(localStorage.getItem('ttt_8bit_fix')) || {X:0, O:0, tie:0};
+        document.getElementById('win-x').innerText = s.X; document.getElementById('win-o').innerText = s.O; document.getElementById('win-tie').innerText = s.tie;
     }
 
-    function copyLink() { navigator.clipboard.writeText(document.getElementById('share-url').value); alert("LINK COPIADO"); }
+    function copyLink() { navigator.clipboard.writeText(document.getElementById('share-url').value); alert("LINK_COPIADO"); }
 </script>
 </body>
 </html>
