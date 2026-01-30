@@ -3,57 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic Tac Toe Online - Firebase</title>
+    <title>Tic Tac Toe 8-Bit Edition</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
-        :root { --primary: #00d4ff; --bg: #0f0f0f; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .container { max-width: 380px; width: 100%; text-align: center; }
-        .card { background: #1a1a1a; padding: 20px; border-radius: 15px; border: 1px solid #333; margin-bottom: 20px; }
-        input { background: #000; border: 1px solid #444; color: white; padding: 12px; border-radius: 8px; width: calc(100% - 26px); margin-bottom: 10px; text-align: center; }
-        .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
-        .cell { aspect-ratio: 1/1; background: #262626; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; cursor: pointer; border-radius: 12px; border: 1px solid #333; }
-        .status { font-weight: bold; color: var(--primary); margin: 15px 0; min-height: 1.5em; }
-        button { background: var(--primary); border: none; color: black; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; }
-        .scoreboard { display: flex; justify-content: space-around; background: #1a1a1a; padding: 15px; border-radius: 12px; font-size: 0.8rem; }
-        .score-val { display: block; font-size: 1.5rem; color: var(--primary); }
-        .hidden { display: none; }
+        :root { --primary: #00ff41; --bg: #000; --x-color: #ff003c; --o-color: #00e5ff; }
+        body { font-family: 'Courier New', Courier, monospace; background: var(--bg); color: #fff; display: flex; flex-direction: column; align-items: center; padding: 10px; margin: 0; }
+        .card { background: #111; padding: 15px; border-radius: 4px; border: 3px solid #333; margin-bottom: 15px; width: 90%; max-width: 500px; text-align: center; }
+        input, select { background: #000; border: 2px solid #555; color: var(--primary); padding: 10px; margin: 5px; width: 85%; font-family: inherit; }
+        button { background: var(--primary); border: none; color: #000; padding: 12px 20px; cursor: pointer; font-weight: bold; margin: 5px; text-transform: uppercase; border-bottom: 4px solid #008f11; }
+        button:active { border-bottom: none; transform: translateY(4px); }
+        .board-container { position: relative; margin: 20px 0; display: inline-block; border: 4px solid #333; }
+        .board { display: grid; gap: 4px; background: #333; padding: 4px; }
+        .cell { background: #000; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; position: relative; }
+        #win-line { position: absolute; z-index: 100; display: none; pointer-events: none; height: 8px; background: #fff; transform-origin: left center; animation: laser-shoot 0.4s steps(10) forwards; box-shadow: 0 0 10px #fff; }
+        @keyframes laser-shoot { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+        .status { font-size: 1.2rem; color: var(--primary); margin: 10px 0; text-transform: uppercase; }
+        .scoreboard { display: flex; justify-content: space-around; width: 90%; max-width: 500px; background: #111; padding: 15px; border: 2px solid #333; }
+        .score-val { font-size: 1.8rem; display: block; color: var(--primary); }
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h2>TIC TAC TOE CLOUD</h2>
-
-    <div id="setup-ui" class="card">
-        <input type="text" id="player-name" placeholder="Tu Nombre">
-        <div id="link-area" class="hidden">
-            <input type="text" id="share-url" readonly>
-            <button onclick="copyLink()">Copiar Enlace</button>
-        </div>
-        <p id="wait-msg">Cargando...</p>
-    </div>
-
-    <div id="status" class="status">Esperando conexión...</div>
-
-    <div class="board" id="board">
-        <div class="cell" data-index="0"></div><div class="cell" data-index="1"></div><div class="cell" data-index="2"></div>
-        <div class="cell" data-index="3"></div><div class="cell" data-index="4"></div><div class="cell" data-index="5"></div>
-        <div class="cell" data-index="6"></div><div class="cell" data-index="7"></div><div class="cell" data-index="8"></div>
-    </div>
-
-    <button id="rematch-btn" class="hidden" onclick="requestRematch()">Revancha</button>
-
-    <div class="scoreboard">
-        <div><b id="label-x">Jugador X</b><span class="score-val" id="score-x">0</span></div>
-        <div><b>Empates</b><span class="score-val" id="score-tie">0</span></div>
-        <div><b id="label-o">Jugador O</b><span class="score-val" id="score-o">0</span></div>
+<div class="card" id="setup-panel">
+    <input type="text" id="p-name" placeholder="USUARIO_ID">
+    <select id="size-select">
+        <option value="3">3x3 [REGLA:3]</option>
+        <option value="6">6x6 [REGLA:4]</option>
+        <option value="9">9x9 [REGLA:5]</option>
+    </select>
+    <div id="link-section" class="hidden">
+        <input type="text" id="share-url" readonly onclick="this.select()">
+        <button onclick="copyLink()">COPIAR_LINK</button>
     </div>
 </div>
 
+<!--<div class="status" id="status">INIT_GAME...</div>-->
+
+<div class="board-container">
+    <div id="board" class="board"></div>
+    <div id="win-line"></div>
+</div>
+
+<button id="rematch-btn" class="hidden" onclick="resetGame()">REINTENTAR?</button>
+
+<div class="scoreboard">
+    <div><b id="name-x">X</b><span class="score-val" id="win-x">0</span></div>
+    <div><b>TIE</b><span class="score-val" id="win-tie">0</span></div>
+    <div><b id="name-o">O</b><span class="score-val" id="win-o">0</span></div>
+</div>
+
 <script>
-    const firebaseConfig = {
+    // --- MOTOR DE AUDIO RETRO 8-BIT ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    
+    function playRetro(freqs, type, duration) {
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type; // 'square' o 'sawtooth' para 8-bit
+        
+        // Efecto de arpegio rápido (típico de 8 bits)
+        freqs.forEach((f, i) => {
+            osc.frequency.setValueAtTime(f, now + (i * (duration / freqs.length)));
+        });
+
+        gain.gain.setValueAtTime(0.1, now);
+        gain.gain.linearRampToValueAtTime(0, now + duration);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(now + duration);
+    }
+
+    const sfx = {
+        move: () => playRetro([150, 300], 'square', 0.05),
+        win: () => playRetro([440, 554, 659, 880], 'square', 0.4),
+        tie: () => playRetro([300, 200, 100], 'sawtooth', 0.3),
+        reset: () => playRetro([523, 659, 783, 1046], 'square', 0.2)
+    };
+
+    // --- FIREBASE CONFIG ---
+   const firebaseConfig = {
         apiKey: "AIzaSyCLjLoz8I7ZnR-xWJ6-ltQfLGOHrGQWS-I",
         authDomain: "lavieja-aa32d.firebaseapp.com",
         databaseURL: "https://lavieja-aa32d-default-rtdb.firebaseio.com/",
@@ -62,86 +95,145 @@
         messagingSenderId: "73070638433",
         appId: "1:73070638433:web:b4758e7ad14ccd54810120"
     };
-  
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
-    
     const urlParams = new URLSearchParams(window.location.search);
     let gameId = urlParams.get('game') || Math.random().toString(36).substring(7);
-    let mySymbol = urlParams.get('game') ? 'O' : 'X';
     let gameRef = db.ref('games/' + gameId);
 
-    // Lógica del juego
-    let board = Array(9).fill("");
-    let turn = "X";
-    let myName = "Yo";
+    let mySymbol = "", boardSize = 3, winTarget = 3, board = [], turn = "X", isHost = !urlParams.get('game'), gameActive = true;
 
-    // Generar link si soy el host
-    if (!urlParams.get('game')) {
-        document.getElementById('share-url').value = window.location.href + "?game=" + gameId;
-        document.getElementById('link-area').classList.remove('hidden');
-        document.getElementById('wait-msg').classList.add('hidden');
+    if (isHost) {
+        mySymbol = Math.random() > 0.5 ? "X" : "O";
+        document.getElementById('share-url').value = window.location.origin + window.location.pathname + "?game=" + gameId;
+        document.getElementById('link-section').classList.remove('hidden');
     }
 
-    // Escuchar cambios en la base de datos (Esto sincroniza a ambos jugadores)
-    gameRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (!data) return;
+    gameRef.on('value', (snap) => {
+        const data = snap.val();
+        if (!data) { if (isHost) initGameDB(); return; }
+        if (board.length > 0 && JSON.stringify(board) !== JSON.stringify(data.board)) sfx.move();
 
-        board = data.board || Array(9).fill("");
-        turn = data.turn || "X";
-        const players = data.players || {};
+        boardSize = data.size;
+        winTarget = boardSize == 3 ? 3 : (boardSize == 6 ? 4 : 5);
+        board = data.board;
+        turn = data.turn;
+        if (!mySymbol) mySymbol = data.hostSymbol === "X" ? "O" : "X";
 
-        // Actualizar nombres y marcador
-        if (players.X) document.getElementById('label-x').innerText = players.X;
-        if (players.O) document.getElementById('label-o').innerText = players.O;
+        renderBoard();
+        updateUI(data);
+    });
 
-        // Dibujar tablero
+    function initGameDB() {
+        const size = parseInt(document.getElementById('size-select').value);
+        gameRef.set({ size: size, board: Array(size * size).fill(""), turn: "X", hostSymbol: mySymbol, winner: null, players: { [mySymbol]: document.getElementById('p-name').value || "USER" } });
+    }
+
+    function renderBoard() {
+        const boardDiv = document.getElementById('board');
+        boardDiv.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
+        boardDiv.style.width = (window.innerWidth < 500 ? window.innerWidth - 60 : 400) + "px";
+        boardDiv.innerHTML = "";
         board.forEach((val, i) => {
-            const cell = document.querySelector(`[data-index="${i}"]`);
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.style.fontSize = boardSize === 3 ? "3rem" : "1.2rem";
             cell.innerText = val;
-            cell.style.color = val === 'X' ? '#ff4b2b' : '#00d4ff';
+            cell.style.color = val === "X" ? "var(--x-color)" : "var(--o-color)";
+            cell.onclick = () => { if(audioCtx.state === 'suspended') audioCtx.resume(); makeMove(i); };
+            boardDiv.appendChild(cell);
         });
+    }
 
-        checkWinner(data.winner);
-    });
-
-    // Enviar movimiento
-    document.querySelectorAll('.cell').forEach(cell => {
-        cell.onclick = () => {
-            const i = cell.dataset.index;
-            if (board[i] === "" && turn === mySymbol) {
-                board[i] = mySymbol;
-                const nextTurn = mySymbol === 'X' ? 'O' : 'X';
-                gameRef.update({
-                    board: board,
-                    turn: nextTurn,
-                    players: { [mySymbol]: document.getElementById('player-name').value || mySymbol }
-                });
-            }
-        };
-    });
-
-    function checkWinner(remoteWinner) {
-        if (remoteWinner) {
-            document.getElementById('status').innerText = "¡Ganó " + remoteWinner + "!";
-            document.getElementById('rematch-btn').classList.remove('hidden');
-            return;
+    function makeMove(i) {
+        if (board[i] === "" && turn === mySymbol && gameActive) {
+            board[i] = mySymbol;
+            gameRef.update({ board: board, turn: turn === "X" ? "O" : "X", [`players/${mySymbol}`]: document.getElementById('p-name').value || "USER" });
+            checkGameStatus();
         }
-        document.getElementById('status').innerText = "Turno de: " + turn;
     }
 
-    function requestRematch() {
-        gameRef.update({ board: Array(9).fill(""), turn: "X", winner: null });
-        document.getElementById('rematch-btn').classList.add('hidden');
+    function checkGameStatus() {
+        const lines = getAllPossibleLines();
+        for (let line of lines) {
+            const symbols = line.map(idx => board[idx]);
+            if (symbols[0] !== "" && symbols.every(s => s === symbols[0])) {
+                gameRef.update({ winner: symbols[0], winLine: line });
+                saveLocalStats(symbols[0]);
+                return;
+            }
+        }
+        if (!board.includes("")) { gameRef.update({ winner: "tie" }); saveLocalStats("tie"); }
     }
 
-    function copyLink() {
-        const input = document.getElementById('share-url');
-        input.select();
-        navigator.clipboard.writeText(input.value);
-        alert("¡Enlace copiado!");
+    function getAllPossibleLines() {
+        let lines = [];
+        for (let r = 0; r < boardSize; r++) {
+            for (let c = 0; c <= boardSize - winTarget; c++) {
+                let h = [], v = [];
+                for(let k=0; k<winTarget; k++) { h.push(r * boardSize + (c + k)); v.push((c + k) * boardSize + r); }
+                lines.push(h); lines.push(v);
+            }
+        }
+        for (let r = 0; r <= boardSize - winTarget; r++) {
+            for (let c = 0; c <= boardSize - winTarget; c++) {
+                let d1 = [], d2 = [];
+                for(let k=0; k<winTarget; k++) { d1.push((r + k) * boardSize + (c + k)); d2.push((r + k) * boardSize + (c + winTarget - 1 - k)); }
+                lines.push(d1); lines.push(d2);
+            }
+        }
+        return lines;
     }
+
+    function updateUI(data) {
+        if (data.players) {
+            document.getElementById('name-x').innerText = data.players.X || "X";
+            document.getElementById('name-o').innerText = data.players.O || "O";
+        }
+        if (data.winner) {
+            if (gameActive) data.winner === "tie" ? sfx.tie() : sfx.win();
+            gameActive = false;
+            document.getElementById('status').innerText = data.winner === "tie" ? "STALEMATE" : `${data.winner}_WINS!`;
+            document.getElementById('rematch-btn').classList.remove('hidden');
+            if (data.winLine) drawLaser(data.winLine, data.winner);
+        } else {
+            gameActive = true;
+            document.getElementById('status').innerText = `READY: ${turn}`;
+            document.getElementById('rematch-btn').classList.add('hidden');
+            document.getElementById('win-line').style.display = "none";
+        }
+        const s = JSON.parse(localStorage.getItem('ttt_8bit_stats')) || {X:0, O:0, tie:0};
+        document.getElementById('win-x').innerText = s.X; document.getElementById('win-o').innerText = s.O; document.getElementById('win-tie').innerText = s.tie;
+    }
+
+    function drawLaser(indices, winner) {
+        const laser = document.getElementById('win-line');
+        const cellsArr = document.querySelectorAll('.cell');
+        const f = cellsArr[indices[0]].getBoundingClientRect();
+        const l = cellsArr[indices[indices.length-1]].getBoundingClientRect();
+        const b = document.getElementById('board').getBoundingClientRect();
+        const x1 = f.left + f.width/2 - b.left, y1 = f.top + f.height/2 - b.top;
+        const x2 = l.left + l.width/2 - b.left, y2 = l.top + l.height/2 - b.top;
+        laser.style.width = Math.sqrt((x2-x1)**2 + (y2-y1)**2) + "px";
+        laser.style.left = x1 + "px"; laser.style.top = y1 + "px";
+        laser.style.transform = `rotate(${Math.atan2(y2-y1, x2-x1) * 180 / Math.PI}deg)`;
+        laser.style.display = "block";
+        laser.style.boxShadow = `0 0 15px ${winner === 'X' ? 'var(--x-color)' : 'var(--o-color)'}`;
+    }
+
+    function resetGame() {
+        sfx.reset();
+        const size = parseInt(document.getElementById('size-select').value);
+        gameRef.update({ board: Array(size * size).fill(""), turn: "X", winner: null, winLine: null, size: size });
+    }
+
+    function saveLocalStats(w) {
+        let s = JSON.parse(localStorage.getItem('ttt_8bit_stats')) || {X:0, O:0, tie:0};
+        s[w]++; localStorage.setItem('ttt_8bit_stats', JSON.stringify(s));
+    }
+
+    function copyLink() { navigator.clipboard.writeText(document.getElementById('share-url').value); alert("LINK_COPIED"); }
 </script>
 </body>
 </html>
