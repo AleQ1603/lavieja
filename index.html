@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic Tac Toe Online - Total Fix</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <title>Tic Tac Toe Online - Firebase</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         :root { --primary: #00d4ff; --bg: #0f0f0f; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
@@ -12,12 +13,10 @@
         .card { background: #1a1a1a; padding: 20px; border-radius: 15px; border: 1px solid #333; margin-bottom: 20px; }
         input { background: #000; border: 1px solid #444; color: white; padding: 12px; border-radius: 8px; width: calc(100% - 26px); margin-bottom: 10px; text-align: center; }
         .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
-        .cell { aspect-ratio: 1/1; background: #262626; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; cursor: pointer; border-radius: 12px; transition: 0.2s; border: 1px solid #333; }
-        .cell:hover { border-color: var(--primary); background: #333; }
-        .status { font-weight: bold; color: var(--primary); margin: 15px 0; min-height: 1.5em; text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; }
-        button { background: var(--primary); border: none; color: black; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; margin-top: 5px; }
-        .btn-secondary { background: #333; color: white; margin-top: 10px; font-size: 0.8rem; }
-        .scoreboard { display: flex; justify-content: space-around; background: #1a1a1a; padding: 15px; border-radius: 12px; border: 1px solid #333; font-size: 0.8rem; }
+        .cell { aspect-ratio: 1/1; background: #262626; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; cursor: pointer; border-radius: 12px; border: 1px solid #333; }
+        .status { font-weight: bold; color: var(--primary); margin: 15px 0; min-height: 1.5em; }
+        button { background: var(--primary); border: none; color: black; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; }
+        .scoreboard { display: flex; justify-content: space-around; background: #1a1a1a; padding: 15px; border-radius: 12px; font-size: 0.8rem; }
         .score-val { display: block; font-size: 1.5rem; color: var(--primary); }
         .hidden { display: none; }
     </style>
@@ -25,20 +24,18 @@
 <body>
 
 <div class="container">
-    <h2>TIC TAC TOE P2P</h2>
+    <h2>TIC TAC TOE CLOUD</h2>
 
     <div id="setup-ui" class="card">
-        <input type="text" id="player-name" placeholder="Tu Nombre" maxlength="10">
-        <div id="host-ui">
-            <p id="peer-id-status" style="font-size: 0.7rem; color: #888;">Obteniendo ID del servidor...</p>
-            <div id="share-controls" class="hidden">
-                <input type="text" id="share-url" readonly>
-                <button class="btn-secondary" onclick="copyLink()">Copiar Enlace e Invitar</button>
-            </div>
+        <input type="text" id="player-name" placeholder="Tu Nombre">
+        <div id="link-area" class="hidden">
+            <input type="text" id="share-url" readonly>
+            <button onclick="copyLink()">Copiar Enlace</button>
         </div>
+        <p id="wait-msg">Cargando...</p>
     </div>
 
-    <div id="status" class="status">Iniciando...</div>
+    <div id="status" class="status">Esperando conexión...</div>
 
     <div class="board" id="board">
         <div class="cell" data-index="0"></div><div class="cell" data-index="1"></div><div class="cell" data-index="2"></div>
@@ -46,7 +43,7 @@
         <div class="cell" data-index="6"></div><div class="cell" data-index="7"></div><div class="cell" data-index="8"></div>
     </div>
 
-    <button id="rematch-btn" class="hidden">Jugar Revancha</button>
+    <button id="rematch-btn" class="hidden" onclick="requestRematch()">Revancha</button>
 
     <div class="scoreboard">
         <div><b id="label-x">Jugador X</b><span class="score-val" id="score-x">0</span></div>
@@ -56,151 +53,93 @@
 </div>
 
 <script>
-    const statusEl = document.getElementById('status');
-    const cells = document.querySelectorAll('.cell');
-    const rematchBtn = document.getElementById('rematch-btn');
+    const firebaseConfig = {
+        apiKey: "AIzaSyCLjLoz8I7ZnR-xWJ6-ltQfLGOHrGQWS-I",
+        authDomain: "lavieja-aa32d.firebaseapp.com",
+        projectId: "lavieja-aa32d",
+        storageBucket: "lavieja-aa32d.firebasestorage.app",
+        messagingSenderId: "73070638433",
+        appId: "1:73070638433:web:b4758e7ad14ccd54810120"
+    };
+  
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
     
-    // Lista de servidores de respaldo para forzar la conexión
-    const iceConfig = {
-        'iceServers': [
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun.relay.metered.ca:80' },
-            { 
-                urls: 'turn:standard.relay.metered.ca:443',
-                username: 'openrelayproject',
-                credential: 'openrelayproject'
-            }
-        ],
-        'iceCandidatePoolSize': 10
-    };
+    const urlParams = new URLSearchParams(window.location.search);
+    let gameId = urlParams.get('game') || Math.random().toString(36).substring(7);
+    let mySymbol = urlParams.get('game') ? 'O' : 'X';
+    let gameRef = db.ref('games/' + gameId);
 
-    const peer = new Peer({ config: iceConfig });
-    let conn, mySymbol = 'X', turn = 'X', board = Array(9).fill(null);
-    let myName = "Yo", opponentName = "Rival", gameActive = true;
+    // Lógica del juego
+    let board = Array(9).fill("");
+    let turn = "X";
+    let myName = "Yo";
 
-    // Cargar Historial
-    const updateUI = () => {
-        const s = JSON.parse(localStorage.getItem('ttt_final')) || {X:0, O:0, tie:0};
-        document.getElementById('score-x').innerText = s.X;
-        document.getElementById('score-o').innerText = s.O;
-        document.getElementById('score-tie').innerText = s.tie;
-    };
-    updateUI();
-
-    peer.on('open', (id) => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const joinId = urlParams.get('join');
-        
-        if (joinId) {
-            mySymbol = 'O';
-            statusEl.innerText = "Conectando al túnel...";
-            // Reintento de conexión si falla el primer intento
-            connectToPeer(joinId);
-        } else {
-            const url = window.location.origin + window.location.pathname + '?join=' + id;
-            document.getElementById('share-url').value = url;
-            document.getElementById('share-controls').classList.remove('hidden');
-            document.getElementById('peer-id-status').innerText = "Listo para conectar";
-            statusEl.innerText = "Esperando rival...";
-        }
-    });
-
-    function connectToPeer(id) {
-        conn = peer.connect(id, { reliable: true });
-        setupEvents();
+    // Generar link si soy el host
+    if (!urlParams.get('game')) {
+        document.getElementById('share-url').value = window.location.href + "?game=" + gameId;
+        document.getElementById('link-area').classList.remove('hidden');
+        document.getElementById('wait-msg').classList.add('hidden');
     }
 
-    peer.on('connection', (c) => {
-        conn = c;
-        setupEvents();
-    });
+    // Escuchar cambios en la base de datos (Esto sincroniza a ambos jugadores)
+    gameRef.on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (!data) return;
 
-    function setupEvents() {
-        conn.on('open', () => {
-            statusEl.innerText = "¡CONECTADO!";
-            document.getElementById('setup-ui').classList.add('hidden');
-            myName = document.getElementById('player-name').value || (mySymbol === 'X' ? 'X' : 'O');
-            conn.send({ type: 'init', name: myName });
+        board = data.board || Array(9).fill("");
+        turn = data.turn || "X";
+        const players = data.players || {};
+
+        // Actualizar nombres y marcador
+        if (players.X) document.getElementById('label-x').innerText = players.X;
+        if (players.O) document.getElementById('label-o').innerText = players.O;
+
+        // Dibujar tablero
+        board.forEach((val, i) => {
+            const cell = document.querySelector(`[data-index="${i}"]`);
+            cell.innerText = val;
+            cell.style.color = val === 'X' ? '#ff4b2b' : '#00d4ff';
         });
 
-        conn.on('data', (data) => {
-            if (data.type === 'init') {
-                opponentName = data.name;
-                document.getElementById('label-x').innerText = (mySymbol === 'X') ? myName : opponentName;
-                document.getElementById('label-o').innerText = (mySymbol === 'O') ? myName : opponentName;
-                statusEl.innerText = `Turno: ${turn === mySymbol ? myName : opponentName}`;
-            }
-            if (data.type === 'move') syncMove(data.index, data.symbol);
-            if (data.type === 'rematch') cleanBoard();
-        });
-
-        conn.on('close', () => { statusEl.innerText = "Conexión perdida."; });
-    }
-
-    cells.forEach(cell => {
-        cell.addEventListener('click', () => {
-            const idx = cell.dataset.index;
-            if (gameActive && turn === mySymbol && !board[idx] && conn?.open) {
-                syncMove(idx, mySymbol);
-                conn.send({ type: 'move', index: idx, symbol: mySymbol });
-            }
-        });
+        checkWinner(data.winner);
     });
 
-    function syncMove(idx, symbol) {
-        board[idx] = symbol;
-        cells[idx].innerText = symbol;
-        cells[idx].style.color = (symbol === 'X') ? '#ff4b2b' : '#00d4ff';
-        turn = (symbol === 'X') ? 'O' : 'X';
-        statusEl.innerText = `Turno: ${turn === mySymbol ? myName : opponentName}`;
-        
-        // Verificar Ganador
-        const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-        for (let combo of wins) {
-            const [a, b, c] = combo;
-            if (board[a] && board[a] === board[b] && board[a] === board[c]) {
-                statusEl.innerText = `¡GANÓ ${board[a] === mySymbol ? myName : opponentName}!`;
-                gameActive = false;
-                if (board[a] === mySymbol) saveResult(mySymbol);
-                rematchBtn.classList.remove('hidden');
-                return;
+    // Enviar movimiento
+    document.querySelectorAll('.cell').forEach(cell => {
+        cell.onclick = () => {
+            const i = cell.dataset.index;
+            if (board[i] === "" && turn === mySymbol) {
+                board[i] = mySymbol;
+                const nextTurn = mySymbol === 'X' ? 'O' : 'X';
+                gameRef.update({
+                    board: board,
+                    turn: nextTurn,
+                    players: { [mySymbol]: document.getElementById('player-name').value || mySymbol }
+                });
             }
+        };
+    });
+
+    function checkWinner(remoteWinner) {
+        if (remoteWinner) {
+            document.getElementById('status').innerText = "¡Ganó " + remoteWinner + "!";
+            document.getElementById('rematch-btn').classList.remove('hidden');
+            return;
         }
-        if (!board.includes(null)) {
-            statusEl.innerText = "¡EMPATE!";
-            gameActive = false;
-            saveResult('tie');
-            rematchBtn.classList.remove('hidden');
-        }
+        document.getElementById('status').innerText = "Turno de: " + turn;
     }
 
-    function saveResult(res) {
-        let s = JSON.parse(localStorage.getItem('ttt_final')) || {X:0, O:0, tie:0};
-        s[res]++;
-        localStorage.setItem('ttt_final', JSON.stringify(s));
-        updateUI();
-    }
-
-    rematchBtn.onclick = () => {
-        cleanBoard();
-        conn.send({ type: 'rematch' });
-    };
-
-    function cleanBoard() {
-        board = Array(9).fill(null);
-        cells.forEach(c => c.innerText = '');
-        turn = 'X';
-        gameActive = true;
-        rematchBtn.classList.add('hidden');
-        statusEl.innerText = `Turno: ${turn === mySymbol ? myName : opponentName}`;
+    function requestRematch() {
+        gameRef.update({ board: Array(9).fill(""), turn: "X", winner: null });
+        document.getElementById('rematch-btn').classList.add('hidden');
     }
 
     function copyLink() {
         const input = document.getElementById('share-url');
         input.select();
         navigator.clipboard.writeText(input.value);
-        alert("Enlace copiado. Pásalo a tu amigo.");
+        alert("¡Enlace copiado!");
     }
 </script>
 </body>
