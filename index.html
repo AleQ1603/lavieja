@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic Tac Toe 8-Bit Edition</title>
+    <title>Tic Tac Toe 8-Bit FIX</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
@@ -13,13 +13,14 @@
         input, select { background: #000; border: 2px solid #555; color: var(--primary); padding: 10px; margin: 5px; width: 85%; font-family: inherit; }
         button { background: var(--primary); border: none; color: #000; padding: 12px 20px; cursor: pointer; font-weight: bold; margin: 5px; text-transform: uppercase; border-bottom: 4px solid #008f11; }
         button:active { border-bottom: none; transform: translateY(4px); }
-        .board-container { position: relative; margin: 20px 0; display: inline-block; border: 4px solid #333; }
+        .board-container { position: relative; margin: 20px 0; display: inline-block; border: 4px solid #333; line-height: 0; }
         .board { display: grid; gap: 4px; background: #333; padding: 4px; }
-        .cell { background: #000; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; position: relative; }
-        #win-line { position: absolute; z-index: 100; display: none; pointer-events: none; height: 8px; background: #fff; transform-origin: left center; animation: laser-shoot 0.4s steps(10) forwards; box-shadow: 0 0 10px #fff; }
+        .cell { background: #000; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; position: relative; line-height: 1; }
+        #win-line { position: absolute; z-index: 100; display: none; pointer-events: none; height: 8px; background: #fff; transform-origin: left center; animation: laser-shoot 0.4s steps(10) forwards; box-shadow: 0 0 15px #fff; }
         @keyframes laser-shoot { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
-        .status { font-size: 1.2rem; color: var(--primary); margin: 10px 0; text-transform: uppercase; }
+        .status { font-size: 1.2rem; color: var(--primary); margin: 10px 0; text-transform: uppercase; min-height: 1.5em; }
         .scoreboard { display: flex; justify-content: space-around; width: 90%; max-width: 500px; background: #111; padding: 15px; border: 2px solid #333; }
+        .score-box { text-align: center; }
         .score-val { font-size: 1.8rem; display: block; color: var(--primary); }
         .hidden { display: none !important; }
     </style>
@@ -27,11 +28,11 @@
 <body>
 
 <div class="card" id="setup-panel">
-    <input type="text" id="p-name" placeholder="USUARIO_ID">
-    <select id="size-select">
-        <option value="3">3x3 [REGLA:3]</option>
-        <option value="6">6x6 [REGLA:4]</option>
-        <option value="9">9x9 [REGLA:5]</option>
+    <input type="text" id="p-name" placeholder="NOMBRE_JUGADOR">
+    <select id="size-select" onchange="if(isHost) resetGame()">
+        <option value="3">3x3 (Gana 3)</option>
+        <option value="6">6x6 (Gana 4)</option>
+        <option value="9">9x9 (Gana 5)</option>
     </select>
     <div id="link-section" class="hidden">
         <input type="text" id="share-url" readonly onclick="this.select()">
@@ -39,9 +40,9 @@
     </div>
 </div>
 
-<!--<div class="status" id="status">INIT_GAME...</div>-->
+<div class="status" id="status">INIT...</div>
 
-<div class="board-container">
+<div class="board-container" id="board-cont">
     <div id="board" class="board"></div>
     <div id="win-line"></div>
 </div>
@@ -49,44 +50,34 @@
 <button id="rematch-btn" class="hidden" onclick="resetGame()">REINTENTAR?</button>
 
 <div class="scoreboard">
-    <div><b id="name-x">X</b><span class="score-val" id="win-x">0</span></div>
-    <div><b>TIE</b><span class="score-val" id="win-tie">0</span></div>
-    <div><b id="name-o">O</b><span class="score-val" id="win-o">0</span></div>
+    <div class="score-box"><b id="name-x">X</b><span class="score-val" id="win-x">0</span></div>
+    <div class="score-box"><b>EMPATE</b><span class="score-val" id="win-tie">0</span></div>
+    <div class="score-box"><b id="name-o">O</b><span class="score-val" id="win-o">0</span></div>
 </div>
 
 <script>
-    // --- MOTOR DE AUDIO RETRO 8-BIT ---
+    // --- AUDIO 8-BIT ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    
     function playRetro(freqs, type, duration) {
         const now = audioCtx.currentTime;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.type = type; // 'square' o 'sawtooth' para 8-bit
-        
-        // Efecto de arpegio rápido (típico de 8 bits)
-        freqs.forEach((f, i) => {
-            osc.frequency.setValueAtTime(f, now + (i * (duration / freqs.length)));
-        });
-
-        gain.gain.setValueAtTime(0.1, now);
+        osc.type = type;
+        freqs.forEach((f, i) => osc.frequency.setValueAtTime(f, now + (i * (duration / freqs.length))));
+        gain.gain.setValueAtTime(0.05, now);
         gain.gain.linearRampToValueAtTime(0, now + duration);
-        
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(now + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(now + duration);
     }
-
     const sfx = {
         move: () => playRetro([150, 300], 'square', 0.05),
         win: () => playRetro([440, 554, 659, 880], 'square', 0.4),
         tie: () => playRetro([300, 200, 100], 'sawtooth', 0.3),
-        reset: () => playRetro([523, 659, 783, 1046], 'square', 0.2)
+        reset: () => playRetro([500, 800], 'square', 0.2)
     };
 
-    // --- FIREBASE CONFIG ---
-   const firebaseConfig = {
+    // --- CONFIGURACIÓN FIREBASE ---
+    const firebaseConfig = {
         apiKey: "AIzaSyCLjLoz8I7ZnR-xWJ6-ltQfLGOHrGQWS-I",
         authDomain: "lavieja-aa32d.firebaseapp.com",
         databaseURL: "https://lavieja-aa32d-default-rtdb.firebaseio.com/",
@@ -113,9 +104,10 @@
     gameRef.on('value', (snap) => {
         const data = snap.val();
         if (!data) { if (isHost) initGameDB(); return; }
+        
         if (board.length > 0 && JSON.stringify(board) !== JSON.stringify(data.board)) sfx.move();
 
-        boardSize = data.size;
+        boardSize = data.size || 3;
         winTarget = boardSize == 3 ? 3 : (boardSize == 6 ? 4 : 5);
         board = data.board;
         turn = data.turn;
@@ -127,7 +119,14 @@
 
     function initGameDB() {
         const size = parseInt(document.getElementById('size-select').value);
-        gameRef.set({ size: size, board: Array(size * size).fill(""), turn: "X", hostSymbol: mySymbol, winner: null, players: { [mySymbol]: document.getElementById('p-name').value || "USER" } });
+        gameRef.set({
+            size: size,
+            board: Array(size * size).fill(""),
+            turn: "X",
+            hostSymbol: mySymbol,
+            winner: null,
+            players: { [mySymbol]: document.getElementById('p-name').value || "JUGADOR" }
+        });
     }
 
     function renderBoard() {
@@ -135,10 +134,11 @@
         boardDiv.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
         boardDiv.style.width = (window.innerWidth < 500 ? window.innerWidth - 60 : 400) + "px";
         boardDiv.innerHTML = "";
+        
         board.forEach((val, i) => {
             const cell = document.createElement('div');
             cell.className = 'cell';
-            cell.style.fontSize = boardSize === 3 ? "3rem" : "1.2rem";
+            cell.style.fontSize = boardSize === 3 ? "3rem" : (boardSize === 6 ? "1.8rem" : "1.2rem");
             cell.innerText = val;
             cell.style.color = val === "X" ? "var(--x-color)" : "var(--o-color)";
             cell.onclick = () => { if(audioCtx.state === 'suspended') audioCtx.resume(); makeMove(i); };
@@ -149,37 +149,49 @@
     function makeMove(i) {
         if (board[i] === "" && turn === mySymbol && gameActive) {
             board[i] = mySymbol;
-            gameRef.update({ board: board, turn: turn === "X" ? "O" : "X", [`players/${mySymbol}`]: document.getElementById('p-name').value || "USER" });
+            gameRef.update({
+                board: board,
+                turn: turn === "X" ? "O" : "X",
+                [`players/${mySymbol}`]: document.getElementById('p-name').value || "JUGADOR"
+            });
             checkGameStatus();
         }
     }
 
     function checkGameStatus() {
-        const lines = getAllPossibleLines();
+        const lines = getAllLines();
         for (let line of lines) {
-            const symbols = line.map(idx => board[idx]);
-            if (symbols[0] !== "" && symbols.every(s => s === symbols[0])) {
-                gameRef.update({ winner: symbols[0], winLine: line });
-                saveLocalStats(symbols[0]);
+            if (line.every(idx => board[idx] === mySymbol)) {
+                gameRef.update({ winner: mySymbol, winLine: line });
+                saveStats(mySymbol);
                 return;
             }
         }
-        if (!board.includes("")) { gameRef.update({ winner: "tie" }); saveLocalStats("tie"); }
+        if (!board.includes("")) {
+            gameRef.update({ winner: "tie" });
+            saveStats("tie");
+        }
     }
 
-    function getAllPossibleLines() {
+    function getAllLines() {
         let lines = [];
         for (let r = 0; r < boardSize; r++) {
             for (let c = 0; c <= boardSize - winTarget; c++) {
                 let h = [], v = [];
-                for(let k=0; k<winTarget; k++) { h.push(r * boardSize + (c + k)); v.push((c + k) * boardSize + r); }
+                for(let k=0; k<winTarget; k++) {
+                    h.push(r * boardSize + (c + k));
+                    v.push((c + k) * boardSize + r);
+                }
                 lines.push(h); lines.push(v);
             }
         }
         for (let r = 0; r <= boardSize - winTarget; r++) {
             for (let c = 0; c <= boardSize - winTarget; c++) {
                 let d1 = [], d2 = [];
-                for(let k=0; k<winTarget; k++) { d1.push((r + k) * boardSize + (c + k)); d2.push((r + k) * boardSize + (c + winTarget - 1 - k)); }
+                for(let k=0; k<winTarget; k++) {
+                    d1.push((r + k) * boardSize + (c + k));
+                    d2.push((r + k) * boardSize + (c + winTarget - 1 - k));
+                }
                 lines.push(d1); lines.push(d2);
             }
         }
@@ -191,49 +203,70 @@
             document.getElementById('name-x').innerText = data.players.X || "X";
             document.getElementById('name-o').innerText = data.players.O || "O";
         }
+        
+        const winLineEl = document.getElementById('win-line');
         if (data.winner) {
             if (gameActive) data.winner === "tie" ? sfx.tie() : sfx.win();
             gameActive = false;
-            document.getElementById('status').innerText = data.winner === "tie" ? "STALEMATE" : `${data.winner}_WINS!`;
+            document.getElementById('status').innerText = data.winner === "tie" ? "EMPATE" : `${data.winner}_GANA!`;
             document.getElementById('rematch-btn').classList.remove('hidden');
             if (data.winLine) drawLaser(data.winLine, data.winner);
         } else {
             gameActive = true;
-            document.getElementById('status').innerText = `READY: ${turn}`;
+            document.getElementById('status').innerText = `TURNO: ${turn}`;
             document.getElementById('rematch-btn').classList.add('hidden');
-            document.getElementById('win-line').style.display = "none";
+            winLineEl.style.display = "none";
         }
-        const s = JSON.parse(localStorage.getItem('ttt_8bit_stats')) || {X:0, O:0, tie:0};
-        document.getElementById('win-x').innerText = s.X; document.getElementById('win-o').innerText = s.O; document.getElementById('win-tie').innerText = s.tie;
+        
+        const s = JSON.parse(localStorage.getItem('ttt_final_8bit')) || {X:0, O:0, tie:0};
+        document.getElementById('win-x').innerText = s.X;
+        document.getElementById('win-o').innerText = s.O;
+        document.getElementById('win-tie').innerText = s.tie;
     }
 
     function drawLaser(indices, winner) {
         const laser = document.getElementById('win-line');
-        const cellsArr = document.querySelectorAll('.cell');
-        const f = cellsArr[indices[0]].getBoundingClientRect();
-        const l = cellsArr[indices[indices.length-1]].getBoundingClientRect();
-        const b = document.getElementById('board').getBoundingClientRect();
-        const x1 = f.left + f.width/2 - b.left, y1 = f.top + f.height/2 - b.top;
-        const x2 = l.left + l.width/2 - b.left, y2 = l.top + l.height/2 - b.top;
-        laser.style.width = Math.sqrt((x2-x1)**2 + (y2-y1)**2) + "px";
-        laser.style.left = x1 + "px"; laser.style.top = y1 + "px";
-        laser.style.transform = `rotate(${Math.atan2(y2-y1, x2-x1) * 180 / Math.PI}deg)`;
+        const cells = document.querySelectorAll('.cell');
+        const boardCont = document.getElementById('board').getBoundingClientRect();
+        
+        const f = cells[indices[0]].getBoundingClientRect();
+        const l = cells[indices[indices.length-1]].getBoundingClientRect();
+        
+        const x1 = f.left + f.width/2 - boardCont.left;
+        const y1 = f.top + f.height/2 - boardCont.top;
+        const x2 = l.left + l.width/2 - boardCont.left;
+        const y2 = l.top + l.height/2 - boardCont.top;
+        
+        const dist = Math.sqrt(Math.pow(x2-x1, 2) + Math.pow(y2-y1, 2));
+        const angle = Math.atan2(y2-y1, x2-x1) * 180 / Math.PI;
+        
+        laser.style.width = dist + "px";
+        laser.style.left = x1 + "px";
+        laser.style.top = y1 + "px";
+        laser.style.transform = `rotate(${angle}deg)`;
         laser.style.display = "block";
-        laser.style.boxShadow = `0 0 15px ${winner === 'X' ? 'var(--x-color)' : 'var(--o-color)'}`;
+        laser.style.boxShadow = `0 0 20px ${winner === 'X' ? 'var(--x-color)' : 'var(--o-color)'}`;
     }
 
     function resetGame() {
         sfx.reset();
         const size = parseInt(document.getElementById('size-select').value);
-        gameRef.update({ board: Array(size * size).fill(""), turn: "X", winner: null, winLine: null, size: size });
+        gameRef.update({
+            board: Array(size * size).fill(""),
+            turn: "X",
+            winner: null,
+            winLine: null,
+            size: size
+        });
     }
 
-    function saveLocalStats(w) {
-        let s = JSON.parse(localStorage.getItem('ttt_8bit_stats')) || {X:0, O:0, tie:0};
-        s[w]++; localStorage.setItem('ttt_8bit_stats', JSON.stringify(s));
+    function saveStats(w) {
+        let s = JSON.parse(localStorage.getItem('ttt_final_8bit')) || {X:0, O:0, tie:0};
+        s[w]++;
+        localStorage.setItem('ttt_final_8bit', JSON.stringify(s));
     }
 
-    function copyLink() { navigator.clipboard.writeText(document.getElementById('share-url').value); alert("LINK_COPIED"); }
+    function copyLink() { navigator.clipboard.writeText(document.getElementById('share-url').value); alert("LINK_COPIADO"); }
 </script>
 </body>
 </html>
