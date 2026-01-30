@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe Online - Conexión Global</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root { --primary: #00d4ff; --bg: #121212; --cell-bg: #1e1e1e; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        .container { max-width: 400px; width: 100%; text-align: center; }
+        
+        .setup-card { background: #1e1e1e; padding: 20px; border-radius: 15px; border: 1px solid #333; margin-bottom: 20px; }
+        input { background: #000; border: 1px solid #444; color: white; padding: 10px; border-radius: 8px; width: calc(100% - 22px); margin-bottom: 10px; }
+        
+        .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
+        .cell { aspect-ratio: 1/1; background: var(--cell-bg); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; cursor: pointer; border-radius: 12px; transition: 0.2s; border: 2px solid transparent; }
+        .cell:hover { border-color: var(--primary); }
+        
+        .status { font-weight: bold; color: var(--primary); margin: 15px 0; height: 1.5em; }
+        
+        button { background: var(--primary); border: none; color: black; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; }
+        .btn-copy { background: #333; color: white; margin-top: 10px; font-size: 0.8rem; }
+
+        .scoreboard { display: flex; justify-content: space-around; background: #1e1e1e; padding: 15px; border-radius: 12px; margin-top: 20px; border: 1px solid #333; }
+        .score-val { display: block; font-size: 1.5rem; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Tic Tac Toe P2P</h2>
+
+    <div id="setup-ui" class="setup-card">
+        <input type="text" id="player-name" placeholder="Escribe tu nombre..." maxlength="12">
+        <div id="host-controls">
+            <p id="loading-id">Generando ID de conexión...</p>
+            <div id="share-area" style="display:none;">
+                <input type="text" id="share-url" readonly>
+                <button class="btn-copy" id="copy-btn">Copiar Enlace de Invitación</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="status" class="status">Iniciando...</div>
+
+    <div class="board" id="board">
+        <div class="cell" data-index="0"></div><div class="cell" data-index="1"></div><div class="cell" data-index="2"></div>
+        <div class="cell" data-index="3"></div><div class="cell" data-index="4"></div><div class="cell" data-index="5"></div>
+        <div class="cell" data-index="6"></div><div class="cell" data-index="7"></div><div class="cell" data-index="8"></div>
+    </div>
+
+    <div class="scoreboard">
+        <div><span id="label-x">Jugador X</span><span class="score-val" id="score-x">0</span></div>
+        <div><span>Empates</span><span class="score-val" id="score-tie">0</span></div>
+        <div><span id="label-o">Jugador O</span><span class="score-val" id="score-o">0</span></div>
+    </div>
+</div>
+
+<script>
+    const statusEl = document.getElementById('status');
+    const nameInput = document.getElementById('player-name');
+    const cells = document.querySelectorAll('.cell');
+    
+    // CONFIGURACIÓN AVANZADA DE SERVIDORES PARA REDES DISTINTAS
+    const peer = new Peer({
+        config: {
+            'iceServers': [
+                { url: 'stun:stun.l.google.com:19302' },
+                { url: 'stun:stun1.l.google.com:19302' },
+                { url: 'stun:stun2.l.google.com:19302' },
+                { url: 'stun:stun3.l.google.com:19302' },
+                { url: 'stun:stun4.l.google.com:19302' }
+            ],
+            'sdpSemantics': 'unified-plan'
+        }
+    });
+
+    let conn;
+    let mySymbol = 'X';
+    let turn = 'X';
+    let board = Array(9).fill(null);
+    let myName = "Yo";
+    let opponentName = "Rival";
+
+    updateScoreUI();
+
+    peer.on('open', (id) => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const joinId = urlParams.get('join');
+
+        if (joinId) {
+            mySymbol = 'O';
+            statusEl.innerText = "Conectando con el rival remoto...";
+            conn = peer.connect(joinId, { reliable: true });
+            bindEvents();
+        } else {
+            const url = `${window.location.href.split('?')[0]}?join=${id}`;
+            document.getElementById('share-url').value = url;
+            document.getElementById('share-area').style.display = 'block';
+            document.getElementById('loading-id').style.display = 'none';
+            statusEl.innerText = "Esperando oponente...";
+        }
+    });
+
+    peer.on('connection', (c) => {
+        conn = c;
+        bindEvents();
+    });
+
+    function bindEvents() {
+        conn.on('open', () => {
+            statusEl.innerText = "¡Conectado! Cargando partida...";
+            document.getElementById('setup-ui').style.display = 'none';
+            myName = nameInput.value || (mySymbol === 'X' ? 'X' : 'O');
+            conn.send({ type: 'init', name: myName });
+        });
+
+        conn.on('data', (data) => {
+            if (data.type === 'init') {
+                opponentName = data.name;
+                updateNamesUI();
+                statusEl.innerText = `Turno de: ${turn === mySymbol ? myName : opponentName}`;
+            }
+            if (data.type === 'move') makeMove(data.index, data.symbol);
+        });
+
+        conn.on('error', (err) => {
+            statusEl.innerText = "Error de conexión. Reintenta.";
+            console.error(err);
+        });
+    }
+
+    cells.forEach(cell => {
+        cell.addEventListener('click', () => {
+            const index = cell.dataset.index;
+            if (turn === mySymbol && !board[index] && conn?.open) {
+                makeMove(index, mySymbol);
+                conn.send({ type: 'move', index, symbol: mySymbol });
+            }
+        });
+    });
+
+    function makeMove(index, symbol) {
+        if (board[index]) return;
+        board[index] = symbol;
+        cells[index].innerText = symbol;
+        cells[index].style.color = symbol === 'X' ? '#ff4b2b' : '#00d4ff';
+        turn = (symbol === 'X') ? 'O' : 'X';
+        statusEl.innerText = `Turno de: ${turn === mySymbol ? myName : opponentName}`;
+        checkWinner();
+    }
+
+    function checkWinner() {
+        const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+        for (let combo of wins) {
+            const [a, b, c] = combo;
+            if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                const winnerName = (board[a] === mySymbol) ? myName : opponentName;
+                statusEl.innerText = `¡Gana ${winnerName}!`;
+                saveWin(board[a]);
+                turn = 'END';
+                return;
+            }
+        }
+        if (!board.includes(null)) {
+            statusEl.innerText = "¡Empate!";
+            saveWin('tie');
+            turn = 'END';
+        }
+    }
+
+    document.getElementById('copy-btn').onclick = () => {
+        const copyText = document.getElementById("share-url");
+        copyText.select();
+        navigator.clipboard.writeText(copyText.value);
+        alert("¡Enlace copiado! Envíalo a tu rival.");
+    };
+
+    function saveWin(result) {
+        let stats = JSON.parse(localStorage.getItem('ttt_stats')) || {X:0, O:0, tie:0};
+        stats[result]++;
+        localStorage.setItem('ttt_stats', JSON.stringify(stats));
+        updateScoreUI();
+    }
+
+    function updateScoreUI() {
+        const stats = JSON.parse(localStorage.getItem('ttt_stats')) || {X:0, O:0, tie:0};
+        document.getElementById('score-x').innerText = stats.X;
+        document.getElementById('score-o').innerText = stats.O;
+        document.getElementById('score-tie').innerText = stats.tie;
+    }
+
+    function updateNamesUI() {
+        document.getElementById('label-x').innerText = (mySymbol === 'X') ? myName : opponentName;
+        document.getElementById('label-o').innerText = (mySymbol === 'O') ? myName : opponentName;
+    }
+</script>
+</body>
+</html>
