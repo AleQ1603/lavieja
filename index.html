@@ -2,37 +2,57 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tic Tac Toe 8-Bit Tournament</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tic Tac Toe 8-Bit Extreme Responsive</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <style>
         :root { --primary: #00ff41; --bg: #000; --x-color: #ff003c; --o-color: #00e5ff; --tie-color: #ffcc00; }
-        body { font-family: 'Courier New', Courier, monospace; background: var(--bg); color: #fff; display: flex; flex-direction: column; align-items: center; padding: 5px; margin: 0; min-height: 100vh; overflow-y: auto; }
-        .card { background: #111; padding: 10px; border-radius: 4px; border: 3px solid #333; margin-bottom: 8px; width: 95%; max-width: 500px; text-align: center; }
-        input, select { background: #000; border: 2px solid #555; color: var(--primary); padding: 8px; margin: 4px; width: 85%; font-family: inherit; font-size: 14px; }
-        button { background: var(--primary); border: none; color: #000; padding: 8px 16px; cursor: pointer; font-weight: bold; text-transform: uppercase; margin: 4px; }
-        .btn-danger { background: var(--x-color); color: white; font-size: 10px; padding: 5px 10px; margin-top: 15px; border-bottom: 3px solid #80001e; }
         
-        .board-container { position: relative; margin: 5px auto; border: 4px solid #333; background: #333; line-height: 0; }
-        .board { display: grid; gap: 4px; }
-        .cell { background: #000; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; position: relative; }
+        body { 
+            font-family: 'Courier New', Courier, monospace; 
+            background: var(--bg); color: #fff; 
+            display: flex; flex-direction: column; align-items: center; 
+            padding: 5px; margin: 0; min-height: 100vh; width: 100vw;
+            box-sizing: border-box; overflow-x: hidden;
+        }
+
+        .card { background: #111; padding: 8px; border-radius: 4px; border: 2px solid #333; margin-bottom: 5px; width: 95%; max-width: 800px; text-align: center; }
+        input, select { background: #000; border: 1px solid #555; color: var(--primary); padding: 8px; margin: 4px; width: 85%; font-family: inherit; font-size: 14px; }
+        button { background: var(--primary); border: none; color: #000; padding: 10px 20px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
         
-        #win-line { position: absolute; z-index: 100; display: none; pointer-events: none; height: 4px; background: #fff; transform-origin: center left; box-shadow: 0 0 10px #fff, 0 0 20px currentColor; animation: laser-draw 0.5s forwards; }
+        /* Contenedor Adaptativo */
+        .board-container { 
+            position: relative; 
+            margin: 5px auto; 
+            border: 4px solid #444; 
+            background: #222; 
+            line-height: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .board { display: grid; gap: 4px; background: #333; }
+        .cell { 
+            background: #000; aspect-ratio: 1/1; 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: bold; cursor: pointer; position: relative;
+        }
+        
+        #win-line { position: absolute; z-index: 100; display: none; pointer-events: none; height: 6px; background: #fff; transform-origin: center left; box-shadow: 0 0 15px currentColor; animation: laser-draw 0.5s forwards; }
         @keyframes laser-draw { 0% { scale: 0 1; } 100% { scale: 1 1; } }
         
-        .status { font-size: 1rem; color: var(--primary); margin: 5px 0; text-transform: uppercase; font-weight: bold; text-align: center; width: 95%; }
-        .scoreboard { display: flex; justify-content: space-around; width: 95%; max-width: 500px; background: #111; padding: 8px; border: 2px solid #333; margin-top: 5px; }
-        .score-val { font-size: 1.3rem; display: block; color: var(--primary); }
+        .status { font-size: 1.1rem; color: var(--primary); margin: 5px 0; text-transform: uppercase; font-weight: bold; text-align: center; }
+        .scoreboard { display: flex; justify-content: space-around; width: 95%; max-width: 800px; background: #111; padding: 8px; border: 2px solid #333; margin-top: 5px; }
+        .score-val { font-size: 1.4rem; display: block; color: var(--primary); }
         
-        /* Estilos del Historial */
-        .history-panel { width: 95%; max-width: 500px; margin-top: 10px; border: 1px solid #222; padding: 5px; background: #080808; }
-        .history-title { font-size: 0.8rem; color: #666; margin-bottom: 5px; text-align: left; padding-left: 5px; }
-        .history-item { font-size: 0.8rem; padding: 3px 8px; border-left: 3px solid #333; margin: 2px 0; text-align: left; background: #111; display: flex; justify-content: space-between; }
+        .history-panel { width: 95%; max-width: 800px; margin-top: 8px; background: #080808; border: 1px solid #222; }
+        .history-item { font-size: 0.8rem; padding: 4px 10px; display: flex; justify-content: space-between; border-left: 4px solid #333; margin: 2px; background: #111; }
         .win-X { border-color: var(--x-color); color: var(--x-color); }
         .win-O { border-color: var(--o-color); color: var(--o-color); }
         .win-tie { border-color: var(--tie-color); color: var(--tie-color); }
         
+        .btn-danger { background: #300; color: #f55; font-size: 10px; margin: 10px 0; border: 1px solid #600; padding: 5px; }
         .hidden { display: none !important; }
     </style>
 </head>
@@ -41,24 +61,24 @@
 <div class="card" id="setup-panel">
     <input type="text" id="p-name" placeholder="TU_NOMBRE" maxlength="12" oninput="saveName(this.value)">
     <select id="size-select" onchange="if(isHost) resetGame('random')">
-        <option value="3">3x3 (Gana 3)</option>
-        <option value="6">6x6 (Gana 4)</option>
-        <option value="9">9x9 (Gana 5)</option>
+        <option value="3">MODO 3x3</option>
+        <option value="6">MODO 6x6</option>
+        <option value="9">MODO 9x9</option>
     </select>
     <div id="link-section" class="hidden">
-        <input type="text" id="share-url" readonly style="width: 65%; font-size: 10px;">
-        <button onclick="copyLink()" style="padding: 4px 8px; font-size: 10px;">LINK</button>
+        <input type="text" id="share-url" readonly style="width: 60%; font-size: 10px;">
+        <button onclick="copyLink()" style="padding: 5px; font-size: 10px;">COPIAR</button>
     </div>
 </div>
 
-<div class="status" id="status">SISTEMA_OK</div>
+<div class="status" id="status">INICIANDO...</div>
 
-<div class="board-container">
+<div class="board-container" id="main-container">
     <div id="board" class="board"></div>
     <div id="win-line"></div>
 </div>
 
-<button id="rematch-btn" class="hidden" onclick="resetAfterWin()">SIGUIENTE RONDA</button>
+<button id="rematch-btn" class="hidden" onclick="resetAfterWin()" style="margin: 10px 0;">SIGUIENTE RONDA</button>
 
 <div class="scoreboard">
     <div><b id="name-x">X</b><span class="score-val" id="win-x">0</span></div>
@@ -67,14 +87,13 @@
 </div>
 
 <div class="history-panel" id="history-panel">
-    <div class="history-title">ÚLTIMAS PARTIDAS:</div>
     <div id="history-list"></div>
 </div>
 
-<button class="btn-danger" onclick="clearScores()">REINICIAR TODO</button>
+<button class="btn-danger" onclick="clearScores()">REINICIAR MARCADOR</button>
 
 <script>
-    // --- PERSISTENCIA ---
+    // --- CONFIGURACIÓN Y PERSISTENCIA ---
     document.getElementById('p-name').value = localStorage.getItem('ttt_player_name') || "";
     function saveName(val) { 
         localStorage.setItem('ttt_player_name', val);
@@ -83,8 +102,8 @@
 
     function clearScores() {
         if(confirm("¿Está seguro de querer reiniciar los puntos y el historial?")) {
-            localStorage.setItem('ttt_8bit_v5', JSON.stringify({X:0, O:0, tie:0}));
-            gameRef.child('history').remove(); // Limpia historial en Firebase
+            localStorage.setItem('ttt_8bit_vFinal', JSON.stringify({X:0, O:0, tie:0}));
+            gameRef.child('history').remove();
             updateScoresDisplay();
         }
     }
@@ -95,12 +114,12 @@
         if(audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
         osc.type = type; f.forEach((v, i) => osc.frequency.setValueAtTime(v, audioCtx.currentTime + (i * d/f.length)));
-        g.gain.setValueAtTime(0.05, audioCtx.currentTime); g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + d);
+        g.gain.setValueAtTime(0.03, audioCtx.currentTime); g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + d);
         osc.connect(g); g.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + d);
     }
     const sfx = { move:()=>playSfx([200,400],'square',0.05), win:()=>playSfx([400,600,900],'square',0.4), tie:()=>playSfx([300,100],'sawtooth',0.3), res:()=>playSfx([600,800],'square',0.2) };
 
-    // --- FIREBASE CONFIG (RELLENAR) ---
+    // --- FIREBASE ---
     const firebaseConfig = {
         apiKey: "AIzaSyCLjLoz8I7ZnR-xWJ6-ltQfLGOHrGQWS-I",
         authDomain: "lavieja-aa32d.firebaseapp.com",
@@ -110,7 +129,7 @@
         messagingSenderId: "73070638433",
         appId: "1:73070638433:web:b4758e7ad14ccd54810120"
     };
-    
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     const urlParams = new URLSearchParams(window.location.search);
@@ -124,6 +143,9 @@
         document.getElementById('share-url').value = window.location.origin + window.location.pathname + "?game=" + gameId;
         document.getElementById('link-section').classList.remove('hidden');
     }
+
+    // REDIMENSIONAMIENTO AUTOMÁTICO
+    window.addEventListener('resize', renderBoard);
 
     gameRef.on('value', (snap) => {
         const data = snap.val();
@@ -160,21 +182,33 @@
 
     function initDB() {
         const sz = parseInt(document.getElementById('size-select').value);
-        const firstTurn = Math.random() > 0.5 ? "X" : "O";
-        gameRef.set({ size: sz, board: Array(sz*sz).fill(""), turn: firstTurn, hostSymbol: mySymbol, winner: null, players: {[mySymbol]: document.getElementById('p-name').value || `JUGADOR ${mySymbol}`} });
+        gameRef.set({ size: sz, board: Array(sz*sz).fill(""), turn: (Math.random() > 0.5 ? "X" : "O"), hostSymbol: mySymbol, winner: null, players: {[mySymbol]: document.getElementById('p-name').value || `JUGADOR ${mySymbol}`} });
     }
 
     function renderBoard() {
         const bDiv = document.getElementById('board');
         bDiv.style.gridTemplateColumns = `repeat(${boardSize}, 1fr)`;
-        const finalSize = Math.min(window.innerHeight - 420, window.innerWidth - 40, 450);
-        bDiv.style.width = finalSize + "px";
+        
+        // CALCULO MAESTRO DE ESPACIO
+        // Restamos espacio de UI superior e inferior dinámicamente
+        const vSpace = window.innerHeight - 340; 
+        const hSpace = window.innerWidth - 40;
+        
+        // El tablero será un cuadrado perfecto ocupando el máximo posible
+        const size = Math.min(vSpace, hSpace, 800); 
+        
+        bDiv.style.width = size + "px";
+        bDiv.style.height = size + "px";
+        
         bDiv.innerHTML = "";
         board.forEach((v, i) => {
             const c = document.createElement('div'); c.className = 'cell';
-            c.style.fontSize = boardSize === 3 ? "2.5rem" : (boardSize === 6 ? "1.5rem" : "1.1rem");
-            c.innerText = v; c.style.color = v==="X" ? "var(--x-color)":"var(--o-color)";
-            c.onclick = () => makeMove(i); bDiv.appendChild(c);
+            const fs = (size / boardSize) * 0.7; // Fuente proporcional al tamaño de celda
+            c.style.fontSize = fs + "px";
+            c.innerText = v; 
+            c.style.color = v==="X" ? "var(--x-color)":"var(--o-color)";
+            c.onclick = () => makeMove(i); 
+            bDiv.appendChild(c);
         });
     }
 
@@ -215,8 +249,7 @@
 
     function updateHistory(history) {
         const list = document.getElementById('history-list');
-        list.innerHTML = "";
-        if(!history) return;
+        list.innerHTML = ""; if(!history) return;
         history.forEach(item => {
             const div = document.createElement('div');
             div.className = `history-item win-${item.winner}`;
@@ -232,8 +265,8 @@
         document.getElementById('status').innerText = w === "tie" ? "EMPATE" : `¡${winnerName} GANA!`;
         document.getElementById('rematch-btn').classList.remove('hidden');
         
-        let s = JSON.parse(localStorage.getItem('ttt_8bit_v5')) || {X:0, O:0, tie:0};
-        s[w]++; localStorage.setItem('ttt_8bit_v5', JSON.stringify(s));
+        let s = JSON.parse(localStorage.getItem('ttt_8bit_vFinal')) || {X:0, O:0, tie:0};
+        s[w]++; localStorage.setItem('ttt_8bit_vFinal', JSON.stringify(s));
         updateScoresDisplay();
         if (line) drawLaser(line, w);
     }
@@ -280,7 +313,7 @@
     }
 
     function updateScoresDisplay() {
-        const s = JSON.parse(localStorage.getItem('ttt_8bit_v5')) || {X:0, O:0, tie:0};
+        const s = JSON.parse(localStorage.getItem('ttt_8bit_vFinal')) || {X:0, O:0, tie:0};
         document.getElementById('win-x').innerText = s.X; document.getElementById('win-o').innerText = s.O; document.getElementById('win-tie').innerText = s.tie;
     }
 
